@@ -1,6 +1,6 @@
 var mongoose = require("mongoose");
 var io = require("./socket");
-
+var { stringifyError } = require("./helper");
 mongoose.connect("mongodb://localhost:27017/nngio");
 var db = mongoose.connection;
 db.on("error", console.error.bind(console, "MongoDB connection error:"));
@@ -11,25 +11,16 @@ var ErrorLogSchema = new mongoose.Schema({
 });
 
 var ErrorLog = mongoose.model("ErrorLog", ErrorLogSchema);
-function stringifyError(err) {
-  var plainObject = {};
-  Object.getOwnPropertyNames(err).forEach(function(key) {
-    plainObject[key] = err[key];
-  });
-  return JSON.stringify(plainObject);
-}
 
 global.errLog = function errLog(err) {
   console.error(err);
   var plainObject = [];
   var temp = stringifyError(err);
 
-  io
-    .in("admin")
-    .emit("admin", {
-      type: "error",
-      body: { text: temp, createdAt: Date.now() }
-    });
+  io.in("admin").emit("admin", {
+    type: "error",
+    body: { text: temp, createdAt: Date.now() }
+  });
 
   ErrorLog({
     text: JSON.stringify({ body: temp }),
@@ -39,24 +30,28 @@ global.errLog = function errLog(err) {
   });
 };
 
-
 const Data = mongoose.model("Data", {
-    data:mongoose.SchemaTypes.Mixed,
-
-  });
+  data: mongoose.SchemaTypes.Mixed
+});
 
 const DataSet = mongoose.model("DataSet", {
-    name: String,
-    normalise: mongoose.SchemaTypes.Mixed,
-    array:[{ type: mongoose.Schema.Types.ObjectId, ref: "Data" }],
-  });
+  name: String,
+  normalise: mongoose.SchemaTypes.Mixed,
+  array: [{ type: mongoose.Schema.Types.ObjectId, ref: "Data" }]
+});
 
 const Net = mongoose.model("Net", {
   date: Date,
-  name: String,
   type: String,
   error: Number,
-  chema: [
+  options: {
+    iterations: Number,
+    errorThresh: Number,
+    logPeriod: Number,
+    learningRate: Number,
+    momentum: Number
+  },
+  layer: [
     {
       type: String,
       width: Number,
@@ -65,7 +60,7 @@ const Net = mongoose.model("Net", {
       bind: [
         {
           mapIndex: Number,
-          chemaIndex: Number
+          layerIndex: Number
         }
       ]
     }
@@ -74,9 +69,9 @@ const Net = mongoose.model("Net", {
 });
 
 const NeuralNet = mongoose.model("NeuralNet", {
-  name: { type: String, required: true },
+  name: { type: String, required: true, unique: true },
   versions: [{ type: mongoose.Schema.Types.ObjectId, ref: "Net" }],
   type: String
 });
 
-module.exports= {Net,NeuralNet,Data,DataSet};
+module.exports = { Net, NeuralNet, Data, DataSet };
