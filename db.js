@@ -48,7 +48,7 @@ const Data = mongoose.model("Data", {
 const DataSet = mongoose.model("DataSet", {
     name: String,
     normalise: mongoose.SchemaTypes.Mixed,
-    [{ type: mongoose.Schema.Types.ObjectId, ref: "Data" }],
+    array:[{ type: mongoose.Schema.Types.ObjectId, ref: "Data" }],
   });
 
 const Net = mongoose.model("Net", {
