@@ -1,10 +1,9 @@
 var brain =require('brain.js');
-var app = require('http').createServer(handler)
-var io = require('socket.io')(app);
-var mongoose = require('mongoose');
+var {io} =require('./socket');
 var WebSocket = require('socket.io-client');
 var moment =require('moment')
 var fetch = require('isomorphic-fetch')
+var {Net} =require ('./db')
 
 /*
 var csocket=WebSocket.connect('wss://streamer.cryptocompare.com')
@@ -19,33 +18,6 @@ csocket.on('m',(data)=>{
 })*/
 
 
-mongoose.connect('mongodb://localhost:27017');
-
-const Net = mongoose.model('net', { 
-    name: String,
-    type:String,
-    data:Buffer,
-    createdAt:Date,
-});
-
-
-
-
-
-function handler (req, res) {
-    fs.readFile(__dirname + '/index.html',
-    function (err, data) {
-      if (err) {
-        res.writeHead(500);
-        return res.end('Error loading index.html');
-      }
-  
-      res.writeHead(200);
-      res.end(data);
-    });
-  }
-  
-app.listen(3080);
 
 setInterval(()=>{
 
