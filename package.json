@@ -1,0 +1,24 @@
+{
+  "name": "nngio",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "vasya stepanov",
+  "license": "SEE LICENSE IN FSF",
+  "dependencies": {
+    "brain": "^1.0.0",
+    "brain.js": "^1.0.5",
+    "classifier": "^1.0.0",
+    "isomorphic-fetch": "^2.2.1",
+    "moment": "^2.20.1",
+    "mongoose": "^5.0.6",
+    "natural-brain": "^0.3.2",
+    "npm": "^5.6.0",
+    "socket.io": "^2.0.4",
+    "synaptic": "^1.1.4",
+    "ws": "^4.1.0"
+  }
+}
