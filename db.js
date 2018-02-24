@@ -39,6 +39,18 @@ global.errLog = function errLog(err) {
   });
 };
 
+
+const Data = mongoose.model("Data", {
+    data:mongoose.SchemaTypes.Mixed,
+
+  });
+
+const DataSet = mongoose.model("DataSet", {
+    name: String,
+    normalise: mongoose.SchemaTypes.Mixed,
+    [{ type: mongoose.Schema.Types.ObjectId, ref: "Data" }],
+  });
+
 const Net = mongoose.model("Net", {
   date: Date,
   name: String,
@@ -67,4 +79,4 @@ const NeuralNet = mongoose.model("NeuralNet", {
   type: String
 });
 
-module.exports= {Net,NeuralNet};
+module.exports= {Net,NeuralNet,Data,DataSet};
