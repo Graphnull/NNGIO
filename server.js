@@ -42,7 +42,6 @@ setInterval(() => {
                 .save()
                 .then(() => {
                   nets[net].model = nNet;
-                  console.log(`Сеть ${net} успешно сохранена`);
                 })
                 .catch(e => {
                   console.error(e);

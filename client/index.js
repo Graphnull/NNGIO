@@ -6,6 +6,9 @@ import socket from "./socket";
 import { Chart, Axis, Tooltip, Geom } from "bizcharts";
 import MenuN from "./menu";
 import Spin from "./spiner";
+import moment from "moment";
+import "moment/locale/ru";
+moment.locale("ru");
 
 class App extends Component {
   state = {
@@ -25,6 +28,9 @@ class App extends Component {
     });
   };
   componentDidMount() {
+    setInterval(() => {
+      this.update();
+    }, 2000);
     this.update();
     socket.on("connect", () => {
       this.update();
@@ -37,7 +43,7 @@ class App extends Component {
         <MenuN
           update={this.update}
           neuralList={this.state.data.map(item => {
-            return { ...item.options, name: item.name };
+            return { ...item.options, name: item.name, info: item };
           })}
         />
       </div>

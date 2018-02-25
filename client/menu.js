@@ -4,6 +4,7 @@ import ReactDOM from "react-dom";
 import { DatePicker, Input, Button, Form, Checkbox, Card, InputNumber, Row, Col, message, Divider } from "antd";
 import socket from "./socket";
 import Spin from "./spiner";
+import moment from "moment";
 
 import TabsMenu from "./tabs";
 const formItemLayout = {
@@ -191,6 +192,22 @@ class LearnInfo extends Component {
     );
   }
 }
+
+const NetInfo = props => {
+  return (
+    <div>
+      <FormItem {...formItemLayout}>
+        <h2 style={{ width: "100%", textAlign: "center" }}>Текущее состояние</h2>
+      </FormItem>
+      <FormItem {...formItemLayout} label="Последнее сохранение">
+        <div>{moment(props.date).fromNow()}</div>
+      </FormItem>
+      <FormItem {...formItemLayout} label="Ошибок при текущем датасете">
+        <div>{props.error * 100}%</div>
+      </FormItem>
+    </div>
+  );
+};
 export default class MenuN extends Component {
   list = () => {
     return this.props.neuralList
@@ -198,8 +215,9 @@ export default class MenuN extends Component {
         return (
           <Card key={i} style={{ width: "100%" }}>
             <h1>{neural.name}</h1>
-
+            <NetInfo {...neural.info} />
             <LearnInfo name={neural.name} {...neural} />
+
             <Divider />
             <TabsMenu name={this.props.name} />
           </Card>
