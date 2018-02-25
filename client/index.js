@@ -13,7 +13,8 @@ class App extends Component {
     hidden: 4,
     loading: false
   };
-  componentDidMount() {
+
+  update = () => {
     this.setState({ loading: true });
     socket.emit("netsInfo", (err, info) => {
       if (err) {
@@ -22,34 +23,22 @@ class App extends Component {
         this.setState({ data: info, loading: false });
       }
     });
+  };
+  componentDidMount() {
+    this.update();
+    socket.on("connect", () => {
+      this.update();
+    });
   }
   render() {
     return (
-      <div style={{ margin: 100 }}>
+      <div style={{ margin: 20 }}>
         {this.state.loading && <Spin />}
         <MenuN
+          update={this.update}
           neuralList={this.state.data.map(item => {
-            return { name: item.name, ...item.options };
+            return { ...item.options, name: item.name };
           })}
-        />
-
-        <Slider
-          onAfterChange={v => {
-            socket.emit("learnRate", v / 100);
-            console.log(v / 100);
-          }}
-        />
-        <Slider
-          onChange={v => {
-            this.setState({ hidden: v });
-            console.log(v);
-          }}
-        />
-        <Slider
-          onAfterChange={v => {
-            socket.emit("iters", v);
-            console.log(v);
-          }}
         />
       </div>
     );

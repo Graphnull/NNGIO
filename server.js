@@ -159,16 +159,26 @@ io.on("connection", function(socket) {
     if (typeof cb !== "function") {
       return null;
     }
-    cb(
-      null,
-      Object.keys(nets).map(nName => {
-        return { name: nName, options: nets[nName].options };
-      })
-    );
+    var temp = Object.keys(nets).map(nName => {
+      var temp = nets[nName].model.toObject();
+      delete temp.maps;
+      temp.name = nName;
+      return temp;
+    });
+    cb(null, temp);
   });
-  socket.on("iters", int => {
-    iters = int * 100;
+  socket.on("save", (name, options, cb) => {
+    if (typeof cb !== "function") {
+      return null;
+    }
+    if (nets.hasOwnProperty(name)) {
+      nets[name].model.options = { ...nets[name].model.options, ...options };
+      cb();
+    } else {
+      cb({ message: "Такая сеть не найдена" });
+    }
   });
+
   socket.on("activate", (opt, cb) => {
     if (typeof cb !== "function") {
       return null;
@@ -223,12 +233,14 @@ function infTrain() {
 
   Object.keys(nets).forEach(net => {
     if (dataset.hasOwnProperty(net)) {
-      promises.push(
-        new Promise((resolve, reject) => {
-          nets[net].train(dataset[net], nets[net].model.options);
-          resolve();
-        })
-      );
+      if (nets[net].model.options.status) {
+        promises.push(
+          new Promise((resolve, reject) => {
+            nets[net].train(dataset[net], nets[net].model.options);
+            resolve();
+          })
+        );
+      }
     }
   });
 

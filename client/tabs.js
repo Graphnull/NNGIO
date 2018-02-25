@@ -36,21 +36,22 @@ export default class TabsMenu extends Component {
                     });
                   }
                 });
-                console.log(temp);
               }}
             >
               Активировать
             </Button>
           </div>
-          <div>
-            <Chart height={400} data={this.state.data} style={{ width: "100%" }} forceFit>
-              <Axis name="date" />
-              <Axis name="value" />
-              <Tooltip crosshairs={{ type: "y" }} />
-              <Geom type="line" position="date*value" size={2} color={"name"} />
-              <Geom type="point" position="date*value" size={4} color={"name"} />
-            </Chart>
-          </div>
+          {this.state.data.length && (
+            <div>
+              <Chart height={400} data={this.state.data} style={{ width: "100%" }} forceFit>
+                <Axis name="date" />
+                <Axis name="value" />
+                <Tooltip crosshairs={{ type: "y" }} />
+                <Geom type="line" position="date*value" size={2} color={"name"} />
+                <Geom type="point" position="date*value" size={4} color={"name"} />
+              </Chart>
+            </div>
+          )}
         </TabPane>
       </Tabs>
     );
