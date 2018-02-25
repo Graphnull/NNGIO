@@ -5,7 +5,7 @@ var moment = require("moment");
 var fetch = require("isomorphic-fetch");
 var { Net, NeuralNet } = require("./db");
 var { stringifyError } = require("./helper");
-var { createNew, loadNets } = require("./neuralNet");
+var { createNew, loadNets, changeOptions } = require("./neuralNet");
 var mongoose = require("mongoose");
 
 /*
@@ -34,29 +34,29 @@ setInterval(() => {
           newNet._id = undefined;
           newNet
             .save()
-            .then(nNet => {})
+            .then(nNet => {
+              origN.last = nNet._id;
+              origN.versions = origN.versions.concat([nNet._id]);
+
+              origN
+                .save()
+                .then(() => {
+                  nets[net].model = nNet;
+                  console.log(`Сеть ${net} успешно сохранена`);
+                })
+                .catch(e => {
+                  console.error(e);
+                });
+            })
             .catch(err => {
               console.error(err);
-            });
-
-          origN.last = nNet._id;
-          origN.versions = origN.versions.concat([nNet._id]);
-
-          origN
-            .save()
-            .then(() => {
-              nets[net].model = nNet;
-              console.log(`Сеть ${net} успешно сохранена`);
-            })
-            .catch(e => {
-              console.error(e);
             });
         }
       });
   });
 }, 10000);
 var nets = {};
-loadNets();
+loadNets(nets);
 var data = [];
 var dataset = {};
 var lastValue = null;
@@ -146,6 +146,7 @@ io.on("connection", function(socket) {
       return null;
     }
     if (nets.hasOwnProperty(name)) {
+      changeOptions(nets[name], options, cb);
     } else {
       cb({ message: "Такая сеть не найдена" });
     }

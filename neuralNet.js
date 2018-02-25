@@ -3,9 +3,9 @@ var { stringifyError } = require("./helper");
 var brain = require("brain.js");
 var { Net, NeuralNet } = require("./db");
 
-const callback = e => {
-  if (nets[opt.name] && nets[opt.name].model) {
-    nets[opt.name].model.error = e.error;
+const callback = (e, net) => {
+  if (net && net.model) {
+    net.model.error = e.error;
   }
   console.log("Итерация:", e.iterations, "Ошибка:", e.error);
 };
@@ -24,7 +24,6 @@ function loadNets(nets) {
     })
     .then(networks => {
       networks.forEach(net => {
-        //console.log(net);
         switch (net.type) {
           case "brain.js":
             var last = net.last;
@@ -39,7 +38,9 @@ function loadNets(nets) {
               nets[net.name] = temp;
             }
             nets[net.name].model = last;
-            nets[net.name].model.options.callback = callback;
+            nets[net.name].model.options.callback = e => {
+              callback(e, nets[net.name]);
+            };
             break;
           default:
             break;
@@ -47,6 +48,9 @@ function loadNets(nets) {
 
         //net.versions
       });
+    })
+    .catch(e => {
+      console.error(e);
     });
 }
 module.exports.loadNets = loadNets;
@@ -70,7 +74,6 @@ function createNew(nets, opt, cb) {
           momentum: opt.momentum || 0.1,
           log: false,
           callbackPeriod: opt.callbackPeriod || 1000,
-          callback: callback,
           timeout: Infinity
         },
         layers: [
@@ -97,7 +100,11 @@ function createNew(nets, opt, cb) {
           .save()
           .then(() => {
             bnet.model = net;
+            bnet.model.options.callback = e => {
+              callback(e, bnet);
+            };
             nets[opt.name] = bnet;
+
             cb(null);
           })
           .catch(cb);
