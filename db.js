@@ -40,6 +40,19 @@ const DataSet = mongoose.model("DataSet", {
   array: [{ type: mongoose.Schema.Types.ObjectId, ref: "Data" }]
 });
 
+var layer = new mongoose.Schema({
+  type: String,
+  width: Number,
+  height: Number,
+  size: Number,
+  bind: [
+    {
+      mapIndex: Number,
+      layerIndex: Number
+    }
+  ]
+});
+
 const Net = mongoose.model("Net", {
   date: Date,
   type: String,
@@ -51,25 +64,13 @@ const Net = mongoose.model("Net", {
     learningRate: Number,
     momentum: Number
   },
-  layer: [
-    {
-      type: String,
-      width: Number,
-      height: Number,
-      size: Number,
-      bind: [
-        {
-          mapIndex: Number,
-          layerIndex: Number
-        }
-      ]
-    }
-  ],
+  layers: [layer],
   maps: [Buffer]
 });
 
 const NeuralNet = mongoose.model("NeuralNet", {
   name: { type: String, required: true, unique: true },
+  last: { type: mongoose.Schema.Types.ObjectId, ref: "Net" },
   versions: [{ type: mongoose.Schema.Types.ObjectId, ref: "Net" }],
   type: String
 });
