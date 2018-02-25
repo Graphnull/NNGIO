@@ -213,20 +213,20 @@ export default class MenuN extends Component {
     return this.props.neuralList
       .map((neural, i) => {
         return (
-          <Card key={i} style={{ width: "100%" }}>
+          <div key={i} style={{ width: "100%" }}>
             <h1>{neural.name}</h1>
             <NetInfo {...neural.info} />
             <LearnInfo name={neural.name} {...neural} />
 
             <Divider />
             <TabsMenu name={this.props.name} />
-          </Card>
+          </div>
         );
       })
       .concat([
-        <Card key={"new"} style={{ width: "100%" }}>
+        <div key={"new"} style={{ width: "100%" }}>
           <LearnInfo new={true} />
-        </Card>
+        </div>
       ]);
   };
   render() {

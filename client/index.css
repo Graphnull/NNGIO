@@ -1,4 +1,50 @@
 
 html, body, #root {
   height: 100%;
+  font-family: 'Fira Mono', monospace;
+  text-shadow:
+     1px 1px 6px rgba(255,240,240,0.5),
+}
+.ant-spin-dot i{
+  border-radius:0% !important;
+  width: 22px !important;
+    height: 22px !important;
+    animation-duration: 5s !important;
+}
+.ant-spin-dot {
+  animation-duration: 5s !important;
+    
+}
+@keyframes opacityAnimation {
+	from { opacity: 0.5; }
+	to { opacity: 1.0 ; }
+}
+.spin{
+  animation: opacityAnimation 0.2s cubic-bezier(0.04, 1.01, 0.34, -1.28) infinite;
+}
+@keyframes animatedBackground {
+	from { background-position: 0 0; }
+	to { background-position: 100% 200%; }
+}
+@keyframes animatedBackground2 {
+	from { background-position: 0 0; }
+	to { background-position: 100% 0; }
+}
+.animate-area	{ 
+  width: 100%;
+  height: 100%;
+  position: fixed;
+  z-index:-1;
+  background-position: center;
+
+	animation: animatedBackground 600s linear infinite;
+}
+.animate-area2	{ 
+  width: 100%;
+  height: 100%;
+  position: fixed;
+  z-index:-1;
+  background-position: center;
+
+	animation: animatedBackground2 2840s cubic-bezier(0.04, 1.01, 0.34, -1.28) infinite;
 }

@@ -28,13 +28,33 @@
     "pre-commit": "1.x",
     "redbox-react": "^1.2.6"
   },
-  "pre-commit": [
-    "lint"
-  ],
+  "pre-commit": ["lint"],
   "scripts": {
     "build": "atool-build",
     "lint": "eslint --ext .js,.jsx src/",
     "start": "dora --plugins webpack",
     "test": "atool-test-mocha ./**/__tests__/*-test.js"
+  },
+  "theme": {
+    "primary-color": "#d25661",
+    "body-background": "#2e3059",
+    "btn-default-bg":"#2e3059",
+    "disabled-color"         : "fade(#2e3059, 25%)",
+    "background-color-light" : "fade(#272740, 98%)",
+    "background-color-base"  : "fade(#272740, 98%)",
+    "btn-primary-color":"#272740",
+    "component-background": "#2e3059",
+    "normal-color": "#ded7de",
+    "heading-color": "#ff7f77",
+    "text-color": "fade(#ded7de, 85%)",
+    "text-color-secondary": "fade(#ded7de, 65%)",
+    "heading-color-dark": "fade(#000, 100%)",
+    "text-color-dark": "fade(#000,85%)",
+    "text-color-secondary-dark": "fade(#000, 65%)",
+    "border-radius-base": "0px",
+    "border-radius-sm": "0px",
+    "input-bg": "#2e3059",
+    "font-family": "'Fira Mono', monospace",
+    "spin-dot-size": "40px"
   }
 }
