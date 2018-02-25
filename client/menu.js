@@ -73,7 +73,6 @@ class LearnInfo extends Component {
               <Checkbox
                 checked={typeof this.state.status === "boolean" ? this.state.status : this.props.status}
                 onChange={e => {
-                  console.log(e.target.checked);
                   this.setState({ status: e.target.checked });
                 }}
               />
@@ -196,13 +195,16 @@ class LearnInfo extends Component {
 const NetInfo = props => {
   return (
     <div>
-      <FormItem {...formItemLayout}>
+      <FormItem {...formItemLayout} >
         <h2 style={{ width: "100%", textAlign: "center" }}>Текущее состояние</h2>
       </FormItem>
-      <FormItem {...formItemLayout} label="Последнее сохранение">
+      <FormItem {...formItemLayout} label="Обучение" style={{marginBottom:'0px'}}>
+        <div>{props.options.status?"Включено":'Выключенно'}</div>
+      </FormItem>
+      <FormItem {...formItemLayout} label="Последнее сохранение" style={{marginBottom:'0px'}}>
         <div>{moment(props.date).fromNow()}</div>
       </FormItem>
-      <FormItem {...formItemLayout} label="Ошибок при текущем датасете">
+      <FormItem {...formItemLayout} label="Ошибок при текущем датасете" style={{marginBottom:'0px'}}>
         <div>{props.error * 100}%</div>
       </FormItem>
     </div>
@@ -215,11 +217,14 @@ export default class MenuN extends Component {
         return (
           <div key={i} style={{ width: "100%" }}>
             <h1>{neural.name}</h1>
+            
             <NetInfo {...neural.info} />
+            <Divider />
             <LearnInfo name={neural.name} {...neural} />
 
             <Divider />
-            <TabsMenu name={this.props.name} />
+            <TabsMenu name={neural.name} />
+            <Divider />
           </div>
         );
       })
