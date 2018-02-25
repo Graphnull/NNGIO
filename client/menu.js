@@ -100,14 +100,14 @@ class LearnInfo extends Component {
                 }}
               />
             </FormItem>
-            <FormItem {...formItemLayout} label="Частота лога" validateStatus={this.state.logPeriod && "warning"}>
+            <FormItem {...formItemLayout} label="Частота лога" validateStatus={this.state.callbackPeriod && "warning"}>
               <InputNumber
                 style={rowStyle}
                 min={1}
                 step={1}
-                value={this.state.logPeriod || this.props.logPeriod}
+                value={this.state.callbackPeriod || this.props.callbackPeriod}
                 onChange={e => {
-                  this.setState({ logPeriod: e });
+                  this.setState({ callbackPeriod: e });
                 }}
               />
             </FormItem>

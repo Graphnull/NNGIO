@@ -5,8 +5,9 @@ var moment = require("moment");
 var fetch = require("isomorphic-fetch");
 var { Net, NeuralNet } = require("./db");
 var { stringifyError } = require("./helper");
-var { createNew } = require("./neuralNet");
+var { createNew, loadNets } = require("./neuralNet");
 var mongoose = require("mongoose");
+
 /*
 var csocket=WebSocket.connect('wss://streamer.cryptocompare.com')
 
@@ -21,68 +22,41 @@ csocket.on('m',(data)=>{
 
 setInterval(() => {
   Object.keys(nets).forEach(net => {
-    try {
-      var newNet = new Net(nets[net].model.toObject());
-      newNet.date = Date.now();
-      newNet.maps = [Buffer.from(JSON.stringify(nets[net].toJSON()), "utf8")];
-      newNet._id = undefined;
-      newNet
-        .save()
-        .then(nNet => {
-          NeuralNet.findOne({ name: net }).then(origN => {
-            origN.last = nNet._id;
-            origN.versions = origN.versions.concat([nNet._id]);
+    NeuralNet.findOne({ name: net })
+      .populate({
+        path: "last"
+      })
+      .then(origN => {
+        if (origN.last.error !== nets[net].model.error) {
+          var newNet = new Net(nets[net].model.toObject());
+          newNet.date = Date.now();
+          newNet.maps = [Buffer.from(JSON.stringify(nets[net].toJSON()), "utf8")];
+          newNet._id = undefined;
+          newNet
+            .save()
+            .then(nNet => {})
+            .catch(err => {
+              console.error(err);
+            });
 
-            origN
-              .save()
-              .then(() => {
-                nets[net].model = nNet;
-                console.log(`Сеть ${net} успешно сохранена`);
-              })
-              .catch(e => {
-                console.error(e);
-              });
-          });
-        })
-        .catch(err => {
-          console.error(err);
-        });
-    } catch (e) {
-      console.error(e);
-    }
+          origN.last = nNet._id;
+          origN.versions = origN.versions.concat([nNet._id]);
+
+          origN
+            .save()
+            .then(() => {
+              nets[net].model = nNet;
+              console.log(`Сеть ${net} успешно сохранена`);
+            })
+            .catch(e => {
+              console.error(e);
+            });
+        }
+      });
   });
 }, 10000);
 var nets = {};
-
-NeuralNet.find()
-  .populate({
-    path: "last"
-  })
-  .then(networks => {
-    networks.forEach(net => {
-      //console.log(net);
-      switch (net.type) {
-        case "brain.js":
-          var last = net.last;
-
-          temp = new brain.NeuralNetwork({
-            hiddenLayers: last.layers.map(i => i.width),
-            activation: "leaky-relu"
-          });
-          if (Array.isArray(last.maps) && last.maps[0]) {
-            nets[net.name] = temp.fromJSON(JSON.parse(last.maps[0].toString("utf8")));
-          } else {
-            nets[net.name] = temp;
-          }
-          nets[net.name].model = last;
-          break;
-        default:
-          break;
-      }
-
-      //net.versions
-    });
-  });
+loadNets();
 var data = [];
 var dataset = {};
 var lastValue = null;
@@ -172,8 +146,6 @@ io.on("connection", function(socket) {
       return null;
     }
     if (nets.hasOwnProperty(name)) {
-      nets[name].model.options = { ...nets[name].model.options, ...options };
-      cb();
     } else {
       cb({ message: "Такая сеть не найдена" });
     }

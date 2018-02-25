@@ -3,6 +3,53 @@ var { stringifyError } = require("./helper");
 var brain = require("brain.js");
 var { Net, NeuralNet } = require("./db");
 
+const callback = e => {
+  if (nets[opt.name] && nets[opt.name].model) {
+    nets[opt.name].model.error = e.error;
+  }
+  console.log("Итерация:", e.iterations, "Ошибка:", e.error);
+};
+
+function changeOptions(net, options, cb) {
+  net.model.options = { ...net.model.options, ...options };
+
+  cb();
+}
+module.exports.changeOptions = changeOptions;
+
+function loadNets(nets) {
+  NeuralNet.find()
+    .populate({
+      path: "last"
+    })
+    .then(networks => {
+      networks.forEach(net => {
+        //console.log(net);
+        switch (net.type) {
+          case "brain.js":
+            var last = net.last;
+
+            temp = new brain.NeuralNetwork({
+              hiddenLayers: last.layers.map(i => i.width),
+              activation: "leaky-relu"
+            });
+            if (Array.isArray(last.maps) && last.maps[0]) {
+              nets[net.name] = temp.fromJSON(JSON.parse(last.maps[0].toString("utf8")));
+            } else {
+              nets[net.name] = temp;
+            }
+            nets[net.name].model = last;
+            nets[net.name].model.options.callback = callback;
+            break;
+          default:
+            break;
+        }
+
+        //net.versions
+      });
+    });
+}
+module.exports.loadNets = loadNets;
 function createNew(nets, opt, cb) {
   if (opt.name && opt.hidden) {
     try {
@@ -19,12 +66,11 @@ function createNew(nets, opt, cb) {
         options: {
           iterations: opt.iterations || 10000,
           errorThresh: opt.errorThresh || 0.0000000005,
-          logPeriod: opt.logPeriod || 1000,
           learningRate: opt.learningRate || 0.3,
           momentum: opt.momentum || 0.1,
-          log: true,
-          callbackPeriod: 100,
-          callback: null,
+          log: false,
+          callbackPeriod: opt.callbackPeriod || 1000,
+          callback: callback,
           timeout: Infinity
         },
         layers: [
