@@ -22,14 +22,27 @@ setInterval(() => {
     try {
       var newNet = Net({
         name: net,
-        data: Buffer.from(JSON.stringify(nets[net].toJSON()), "utf8"),
-        createdAt: Date.now()
+        type: "",
+        options: nets[net].options,
+        date: Date.now(),
+        maps: [Buffer.from(JSON.stringify(nets[net].toJSON()), "utf8")]
       });
 
       newNet
         .save()
-        .then(() => {
-          console.log(`Сеть ${net} успешно сохранена`);
+        .then(nNet => {
+          NeuralNet.findOne({ name: net }).then(origN => {
+            origN.last = nNet._id;
+            origN.versions = origN.versions.concat([nNet._id]);
+            origN
+              .save()
+              .then(() => {
+                console.log(`Сеть ${net} успешно сохранена`);
+              })
+              .catch(e => {
+                console.error(e);
+              });
+          });
         })
         .catch(err => {
           console.error(err);
@@ -43,23 +56,26 @@ var nets = {};
 
 NeuralNet.find()
   .populate({
-    path: "versions",
-    options: { limit: 1, sort: { date: 1 } }
+    path: "last"
   })
   .then(networks => {
     networks.forEach(net => {
       //console.log(net);
       switch (net.type) {
         case "brain.js":
-          var temp = net.versions.find(v => v.date);
-          console.log(temp.layer);
-          if (temp.type === "init") {
-            nets[net.name] = new brain.NeuralNetwork({
-              hiddenLayers: opt.hidden
-            });
+          var last = net.last;
+
+          temp = new brain.NeuralNetwork({
+            hiddenLayers: last.layers.map(i => i.width),
+            activation: "leaky-relu"
+          });
+          if (Array.isArray(last.maps) && last.maps[0]) {
+            nets[net.name] = temp.fromJSON(JSON.parse(last.maps[0].toString("utf8")));
           } else {
+            nets[net.name] = temp;
           }
-          nets[net.name].options = temp.options;
+
+          nets[net.name].options = last.options;
           break;
         default:
           break;
@@ -71,7 +87,7 @@ NeuralNet.find()
 var data = [];
 var dataset = {};
 var lastValue = null;
-var timeInterval = 200;
+var timeInterval = 2000;
 var iters = 10000;
 var inputSize = 10;
 var outputSize = 20;
@@ -160,23 +176,27 @@ io.on("connection", function(socket) {
     }
     try {
       var input = getArr(data[data.length - 1].date - timeInterval / 2, data);
-      if (input && nets[opt.name]) {
-        var temprun = nets[opt.name].run(input.slice(-inputSize));
-        var temp = temprun.reverse().map((item, i) => {
-          return {
-            name: "prog",
-            date: data[data.length - 1].date + i * timeInterval,
-            value: item
-          };
-        });
-        temp = temp.concat(
-          data.map(item => {
-            return { name: "BTC USD", date: item.date, value: item.value };
-          })
-        );
-        cb(null, temp);
+      if (input) {
+        if (nets[opt.name]) {
+          var temprun = nets[opt.name].run(input.slice(-inputSize));
+          var temp = temprun.reverse().map((item, i) => {
+            return {
+              name: "prog",
+              date: data[data.length - 1].date + i * timeInterval,
+              value: item
+            };
+          });
+          temp = temp.concat(
+            data.map(item => {
+              return { name: "BTC USD", date: item.date, value: item.value };
+            })
+          );
+          cb(null, temp);
+        } else {
+          cb({ message: "Такой сети не найдено" });
+        }
       } else {
-        cb({ message: "Такой сети не найдено" });
+        cb({ message: "Датасет слишком маленький" });
       }
     } catch (e) {
       cb(e);
@@ -189,11 +209,14 @@ io.on("connection", function(socket) {
     if (opt.name && opt.hidden) {
       try {
         var bnet = new brain.NeuralNetwork({
-          hiddenLayers: opt.hidden
+          input: 20,
+          output: 10,
+          hiddenLayers: opt.hidden,
+          activation: "leaky-relu"
         });
         var net = Net({
           date: Date.now(),
-          type: "init",
+          type: "",
           error: 1,
           options: {
             iterations: opt.iterations || 10000,
@@ -202,11 +225,12 @@ io.on("connection", function(socket) {
             learningRate: opt.learningRate || 0.3,
             momentum: opt.momentum || 0.1
           },
-          layer: [
+          layers: [
             opt.hidden.map(s => {
               return { width: s, type: "hidden" };
             })
           ],
+
           maps: []
         });
       } catch (e) {
@@ -218,6 +242,7 @@ io.on("connection", function(socket) {
           var nNet = NeuralNet({
             name: opt.name,
             type: "brain.js",
+            last: netSaved._id,
             versions: [netSaved._id]
           });
           nNet
@@ -225,9 +250,13 @@ io.on("connection", function(socket) {
             .then(() => {
               bnet.options = Object.assign(net.options, {
                 log: true,
-                callback: null,
+                callbackPeriod: 100,
+                callback: () => {
+                  //console.log("hi");
+                },
                 timeout: Infinity
               });
+
               nets[opt.name] = bnet;
               cb(null);
             })
@@ -256,6 +285,7 @@ function infTrain() {
     if (dataset.hasOwnProperty(net)) {
       promises.push(
         new Promise((resolve, reject) => {
+          console.log(nets[net].options);
           nets[net].train(dataset[net], nets[net].options);
           resolve();
         })
