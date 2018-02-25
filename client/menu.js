@@ -4,7 +4,8 @@ import ReactDOM from "react-dom";
 import { DatePicker, Input, Button, Card, InputNumber, Row, Col, message, Divider } from "antd";
 import socket from "./socket";
 import Spin from "./spiner";
-import { Chart, Axis, Tooltip, Geom } from "bizcharts";
+
+import TabsMenu from "./tabs";
 class NeuralCard extends Component {
   state = {
     name: "",
@@ -86,9 +87,9 @@ class NeuralCard extends Component {
                   if (err) {
                     message.error(err.message || err.errmsg);
                   } else {
-                    this.setState({ loading: false });
                     console.log("created");
                   }
+                  this.setState({ loading: false });
                 });
               }}
             >
@@ -99,43 +100,8 @@ class NeuralCard extends Component {
           )}
         </div>
 
-        <div>
-          <Divider />
-          <Button
-            onClick={() => {
-              this.setState({ loading: true });
-              var temp = socket.emit("activate", { name: this.props.name }, (err, data) => {
-                if (err) {
-                  message.error(err.message);
-                } else {
-                  this.setState({
-                    data: data.map(item => {
-                      if (item.name === "prog") {
-                        item.value = item.value * 10000 + 5000;
-                        return item;
-                      } else {
-                        return item;
-                      }
-                    }), //.filter((i)=>i.date>(Date.now()-500000))
-                    loading: false
-                  });
-                }
-              });
-              console.log(temp);
-            }}
-          >
-            Активировать
-          </Button>
-        </div>
-        <div>
-          <Chart height={400} data={this.state.data} style={{ width: "100%" }} forceFit>
-            <Axis name="date" />
-            <Axis name="value" />
-            <Tooltip crosshairs={{ type: "y" }} />
-            <Geom type="line" position="date*value" size={2} color={"name"} />
-            <Geom type="point" position="date*value" size={4} color={"name"} />
-          </Chart>
-        </div>
+        <Divider />
+        <TabsMenu name={this.props.name} />
       </div>
     );
   }
