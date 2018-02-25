@@ -18,7 +18,7 @@ const formItemLayout = {
 };
 const rowStyle = { width: "50%", minWidth: "100px" };
 const FormItem = Form.Item;
-class NeuralCard extends Component {
+class LearnInfo extends Component {
   state = {
     name: "",
     hidden: [55],
@@ -36,18 +36,17 @@ class NeuralCard extends Component {
         }}
       >
         {this.state.loading && <Spin />}
+
         <div>
           <Row gutter={8}>
             <Col span={12}>
-              {this.props.new ? (
+              {this.props.new && (
                 <Input
                   value={this.state.name}
                   onChange={e => {
                     this.setState({ name: e.target.value });
                   }}
                 />
-              ) : (
-                <h1>{this.props.name}</h1>
               )}
             </Col>
           </Row>
@@ -61,6 +60,9 @@ class NeuralCard extends Component {
               alignItems: "stretch"
             }}
           >
+            <FormItem {...formItemLayout}>
+              <h2 style={{ width: "100%", textAlign: "center" }}>Параметры обучения</h2>
+            </FormItem>
             <FormItem
               {...formItemLayout}
               label="Состояние"
@@ -134,8 +136,10 @@ class NeuralCard extends Component {
               />
             </FormItem>
             {this.props.new ? (
-              <FormItem {...formItemLayout}>
+              <FormItem {...formItemLayout} label=":">
                 <Button
+                  type="primary"
+                  style={rowStyle}
                   onClick={() => {
                     this.setState({ loading: true });
                     socket.emit("createNew", this.state, err => {
@@ -152,8 +156,10 @@ class NeuralCard extends Component {
                 </Button>
               </FormItem>
             ) : (
-              <FormItem {...formItemLayout}>
+              <FormItem {...formItemLayout} label=":">
                 <Button
+                  style={rowStyle}
+                  type="primary"
                   onClick={() => {
                     this.setState({ loading: true });
                     var keys = { ...this.state, name: undefined, data: undefined, loading: undefined, hidden: undefined };
@@ -181,9 +187,6 @@ class NeuralCard extends Component {
             )}
           </Form>
         </div>
-
-        <Divider />
-        <TabsMenu name={this.props.name} />
       </div>
     );
   }
@@ -194,13 +197,17 @@ export default class MenuN extends Component {
       .map((neural, i) => {
         return (
           <Card key={i} style={{ width: "100%" }}>
-            <NeuralCard name={neural.name} {...neural} />
+            <h1>{neural.name}</h1>
+
+            <LearnInfo name={neural.name} {...neural} />
+            <Divider />
+            <TabsMenu name={this.props.name} />
           </Card>
         );
       })
       .concat([
         <Card key={"new"} style={{ width: "100%" }}>
-          <NeuralCard new={true} />
+          <LearnInfo new={true} />
         </Card>
       ]);
   };
