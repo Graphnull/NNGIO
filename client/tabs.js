@@ -3,7 +3,7 @@ import ReactDOM from "react-dom";
 import { DatePicker, Input, Button, Card, InputNumber, Row, Col, message, Divider, Tabs } from "antd";
 import socket from "./socket";
 import { Chart, Axis, Tooltip, Geom } from "bizcharts";
-import moment from 'moment'
+import moment from "moment";
 const TabPane = Tabs.TabPane;
 
 export default class TabsMenu extends Component {
@@ -17,6 +17,8 @@ export default class TabsMenu extends Component {
         <TabPane tab="Датасет" key="1">
           <div>
             <Button
+              type="primary"
+              icon="play-circle"
               onClick={() => {
                 this.setState({ loading: true });
                 var temp = socket.emit("activate", { name: this.props.name }, (err, data) => {
@@ -45,8 +47,8 @@ export default class TabsMenu extends Component {
           {this.state.data.length && (
             <Card>
               <Chart height={400} data={this.state.data} style={{ width: "100%" }} forceFit>
-                <Axis  label={{textStyle:{fill:'#ff7f77'},formatter:(e)=>moment(parseInt(e,10)).fromNow()}} name="date" />
-                <Axis label={{textStyle:{fill:'#ff7f77'}}} name="value" />
+                <Axis label={{ textStyle: { fill: "#ff7f77" }, formatter: e => moment(parseInt(e, 10)).fromNow() }} name="date" />
+                <Axis label={{ textStyle: { fill: "#ff7f77" } }} name="value" />
                 <Tooltip crosshairs={{ type: "y" }} />
                 <Geom type="line" position="date*value" size={2} color={"name"} />
                 <Geom type="point" position="date*value" size={4} color={"name"} />
