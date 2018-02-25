@@ -40,7 +40,7 @@ const DataSet = mongoose.model("DataSet", {
   array: [{ type: mongoose.Schema.Types.ObjectId, ref: "Data" }]
 });
 
-var layer = new mongoose.Schema({
+var LayerSchema = new mongoose.Schema({
   type: String,
   width: Number,
   height: Number,
@@ -58,7 +58,7 @@ const Net = mongoose.model("Net", {
   type: String,
   error: Number,
   options: mongoose.SchemaTypes.Mixed,
-  layers: [layer],
+  layers: [LayerSchema],
   maps: [Buffer]
 });
 

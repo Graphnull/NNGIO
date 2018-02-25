@@ -1,7 +1,7 @@
 var { nets } = require("./server");
 var { stringifyError } = require("./helper");
 var brain = require("brain.js");
-var { Net, NeuralNet } = require("./db");
+var { Net, NeuralNet, Layer } = require("./db");
 
 const callback = (e, net) => {
   if (net && net.model) {
@@ -27,9 +27,10 @@ function loadNets(nets) {
         switch (net.type) {
           case "brain.js":
             var last = net.last;
-
             temp = new brain.NeuralNetwork({
-              hiddenLayers: last.layers.map(i => i.width),
+              input: last.layers.find(i => i.type === "input").width,
+              output: last.layers.find(i => i.type === "output").width,
+              hiddenLayers: last.layers.filter(i => i.type === "hidden").map(i => i.width),
               activation: "leaky-relu"
             });
             if (Array.isArray(last.maps) && last.maps[0]) {
@@ -55,33 +56,34 @@ function loadNets(nets) {
 }
 module.exports.loadNets = loadNets;
 function createNew(nets, opt, cb) {
-  if (opt.name && opt.hidden) {
+  if (opt.name && opt.hidden && opt.input && opt.output && opt.type) {
     try {
       var bnet = new brain.NeuralNetwork({
-        input: 20,
-        output: 10,
+        input: opt.input,
+        output: opt.output,
         hiddenLayers: opt.hidden,
-        activation: "leaky-relu"
+        activation: opt.activation
       });
       var net = Net({
         date: Date.now(),
         type: "",
         error: 1,
         options: {
-          iterations: opt.iterations || 10000,
-          errorThresh: opt.errorThresh || 0.0000000005,
-          learningRate: opt.learningRate || 0.3,
-          momentum: opt.momentum || 0.1,
+          iterations: 10000,
+          errorThresh: 0.0000000005,
+          learningRate: 0.3,
+          momentum: 0.1,
           log: false,
-          callbackPeriod: opt.callbackPeriod || 1000,
+          callbackPeriod: 1000,
           timeout: Infinity
         },
-        layers: [
-          opt.hidden.map(s => {
-            return { width: s, type: "hidden" };
-          })
-        ],
-
+        layers: [{ width: opt.input, type: "input" }]
+          .concat(
+            opt.hidden.map(s => {
+              return { width: s, type: "hidden" };
+            })
+          )
+          .concat([{ width: opt.output, type: "output" }]),
         maps: []
       });
     } catch (e) {
@@ -90,9 +92,10 @@ function createNew(nets, opt, cb) {
     net
       .save()
       .then(netSaved => {
+        console.log(netSaved);
         var nNet = NeuralNet({
           name: opt.name,
-          type: "brain.js",
+          type: opt.type,
           last: netSaved._id,
           versions: [netSaved._id]
         });
