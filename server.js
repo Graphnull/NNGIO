@@ -5,6 +5,8 @@ var moment = require("moment");
 var fetch = require("isomorphic-fetch");
 var { Net, NeuralNet } = require("./db");
 var { stringifyError } = require("./helper");
+var { createNew } = require("./neuralNet");
+var mongoose = require("mongoose");
 /*
 var csocket=WebSocket.connect('wss://streamer.cryptocompare.com')
 
@@ -20,23 +22,21 @@ csocket.on('m',(data)=>{
 setInterval(() => {
   Object.keys(nets).forEach(net => {
     try {
-      var newNet = Net({
-        name: net,
-        type: "",
-        options: nets[net].options,
-        date: Date.now(),
-        maps: [Buffer.from(JSON.stringify(nets[net].toJSON()), "utf8")]
-      });
-
+      var newNet = new Net(nets[net].model.toObject());
+      newNet.date = Date.now();
+      newNet.maps = [Buffer.from(JSON.stringify(nets[net].toJSON()), "utf8")];
+      newNet._id = undefined;
       newNet
         .save()
         .then(nNet => {
           NeuralNet.findOne({ name: net }).then(origN => {
             origN.last = nNet._id;
             origN.versions = origN.versions.concat([nNet._id]);
+
             origN
               .save()
               .then(() => {
+                nets[net].model = nNet;
                 console.log(`Сеть ${net} успешно сохранена`);
               })
               .catch(e => {
@@ -51,7 +51,7 @@ setInterval(() => {
       console.error(e);
     }
   });
-}, 60000);
+}, 10000);
 var nets = {};
 
 NeuralNet.find()
@@ -74,8 +74,7 @@ NeuralNet.find()
           } else {
             nets[net.name] = temp;
           }
-
-          nets[net.name].options = last.options;
+          nets[net.name].model = last;
           break;
         default:
           break;
@@ -87,7 +86,7 @@ NeuralNet.find()
 var data = [];
 var dataset = {};
 var lastValue = null;
-var timeInterval = 2000;
+var timeInterval = 200;
 var iters = 10000;
 var inputSize = 10;
 var outputSize = 20;
@@ -206,66 +205,7 @@ io.on("connection", function(socket) {
     if (typeof cb !== "function") {
       return null;
     }
-    if (opt.name && opt.hidden) {
-      try {
-        var bnet = new brain.NeuralNetwork({
-          input: 20,
-          output: 10,
-          hiddenLayers: opt.hidden,
-          activation: "leaky-relu"
-        });
-        var net = Net({
-          date: Date.now(),
-          type: "",
-          error: 1,
-          options: {
-            iterations: opt.iterations || 10000,
-            errorThresh: opt.errorThresh || 0.0000000005,
-            logPeriod: opt.logPeriod || 1000,
-            learningRate: opt.learningRate || 0.3,
-            momentum: opt.momentum || 0.1
-          },
-          layers: [
-            opt.hidden.map(s => {
-              return { width: s, type: "hidden" };
-            })
-          ],
-
-          maps: []
-        });
-      } catch (e) {
-        return cb(JSON.parse(stringifyError(e)));
-      }
-      net
-        .save()
-        .then(netSaved => {
-          var nNet = NeuralNet({
-            name: opt.name,
-            type: "brain.js",
-            last: netSaved._id,
-            versions: [netSaved._id]
-          });
-          nNet
-            .save()
-            .then(() => {
-              bnet.options = Object.assign(net.options, {
-                log: true,
-                callbackPeriod: 100,
-                callback: () => {
-                  //console.log("hi");
-                },
-                timeout: Infinity
-              });
-
-              nets[opt.name] = bnet;
-              cb(null);
-            })
-            .catch(cb);
-        })
-        .catch(cb);
-    } else {
-      cb({ message: "Неверный тип данных" });
-    }
+    createNew(nets, opt, cb);
   });
   socket.on("dataset", (opt, cb) => {
     if (!Array.isArray(dataset[opt.net])) {
@@ -285,8 +225,7 @@ function infTrain() {
     if (dataset.hasOwnProperty(net)) {
       promises.push(
         new Promise((resolve, reject) => {
-          console.log(nets[net].options);
-          nets[net].train(dataset[net], nets[net].options);
+          nets[net].train(dataset[net], nets[net].model.options);
           resolve();
         })
       );
@@ -296,8 +235,6 @@ function infTrain() {
   if (promises.length) {
     Promise.all(promises)
       .then(values => {
-        //console.log('promises.length',promises.length);
-
         setTimeout(infTrain, 10);
       })
       .catch(err => {

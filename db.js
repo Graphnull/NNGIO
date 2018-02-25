@@ -57,13 +57,7 @@ const Net = mongoose.model("Net", {
   date: Date,
   type: String,
   error: Number,
-  options: {
-    iterations: Number,
-    errorThresh: Number,
-    logPeriod: Number,
-    learningRate: Number,
-    momentum: Number
-  },
+  options: mongoose.SchemaTypes.Mixed,
   layers: [layer],
   maps: [Buffer]
 });
