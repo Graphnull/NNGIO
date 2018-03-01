@@ -54,7 +54,8 @@ export default class CreateNew extends Component {
                 this.setState({ type: e });
               }}
             >
-              <Option value="brain.js">Стандартный</Option>
+              <Option value="brain.js">brain.js</Option>
+              <Option value="synaptic">synaptic</Option>
               <Option value="video" disabled>
                 video (experimental)
               </Option>

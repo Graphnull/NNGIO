@@ -9,6 +9,7 @@ import { rowStyle, formItemLayout } from "./helper";
 import TabsMenu from "./tabs";
 import CreateNew from "./createNew";
 import LearnInfo from "./learnInfo";
+import { Chart, Axis, Tooltip, Geom } from "bizcharts";
 const FormItem = Form.Item;
 
 const NetInfo = props => {
@@ -40,6 +41,37 @@ const NetInfo = props => {
   );
 };
 
+class DataSets extends Component {
+  state = { list: [] };
+  componentDidMount() {
+    socket.emit("dataSetsInfo", (err, data) => {
+      if (err) {
+        message.error(err);
+      } else {
+        this.setState({ list: data });
+      }
+    });
+  }
+
+  render() {
+    return (
+      <div>
+        {this.state.list.map(i => {
+          return (
+            <div>
+              <h2>{i.name}</h2>
+              <div>Тип:{i.type}</div>
+              <div>Обновление:{moment(i.updatedAt).fromNow()}</div>
+              <div>Количество:{i.array.length}</div>
+              <Divider />
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+}
+
 export default class MenuN extends Component {
   list = () => {
     return this.props.neuralList.map((neural, i) => {
@@ -62,6 +94,7 @@ export default class MenuN extends Component {
     return (
       <div>
         {this.list()}
+        <DataSets />
         <CreateNew />
       </div>
     );

@@ -30,15 +30,35 @@ global.errLog = function errLog(err) {
   });
 };
 
-const Data = mongoose.model("Data", {
+var DataSchema = new mongoose.Schema({
+  updatedAt: Date,
   data: mongoose.SchemaTypes.Mixed
 });
+DataSchema.pre("save", function(next) {
+  this.updatedAt = Date.now();
 
-const DataSet = mongoose.model("DataSet", {
-  name: String,
-  normalise: mongoose.SchemaTypes.Mixed,
+  next();
+});
+const Data = mongoose.model("Data", DataSchema);
+
+var DataSetSchema = new mongoose.Schema({
+  name: { type: String, required: true, unique: true },
+  type: String,
+  updatedAt: Date,
+  usedAt: Date,
+  compressed: String,
+  compressData: Buffer,
   array: [{ type: mongoose.Schema.Types.ObjectId, ref: "Data" }]
 });
+DataSetSchema.pre("save", function(next) {
+  this.updatedAt = Date.now();
+
+  next();
+});
+
+const DataSet = mongoose.model("DataSet", DataSetSchema);
+
+var test = DataSet({ name: "BTC", type: "line" });
 
 var LayerSchema = new mongoose.Schema({
   type: String,

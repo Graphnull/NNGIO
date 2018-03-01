@@ -3,9 +3,9 @@ var { io } = require("./socket");
 var WebSocket = require("socket.io-client");
 var moment = require("moment");
 var fetch = require("isomorphic-fetch");
-var { Net, NeuralNet } = require("./db");
+var { Net, NeuralNet, Data, DataSet } = require("./db");
 var { stringifyError } = require("./helper");
-var { createNew, loadNets, changeOptions } = require("./neuralNet");
+var { createNew, loadNets, changeOptions, infTrain } = require("./neuralNet");
 var mongoose = require("mongoose");
 
 /*
@@ -27,7 +27,7 @@ setInterval(() => {
         path: "last"
       })
       .then(origN => {
-        if (origN.last.error !== nets[net].model.error) {
+        if (origN && origN.last.error !== nets[net].model.error) {
           var newNet = new Net(nets[net].model.toObject());
           newNet.date = Date.now();
           newNet.maps = [Buffer.from(JSON.stringify(nets[net].toJSON()), "utf8")];
@@ -51,23 +51,79 @@ setInterval(() => {
               console.error(err);
             });
         }
+      })
+      .catch(e => {
+        console.log(e);
       });
   });
 }, 10000);
 var nets = {};
-loadNets(nets);
-var data = [];
+var data = {};
+
 var dataset = {};
+infTrain(nets, dataset);
+
+loadNets(nets, () => {
+  DataSet.find({})
+    .populate({
+      path: "array"
+    })
+    .then(dss => {
+      if (dss) {
+        dss.forEach(ds => {
+          if (!dataset.hasOwnProperty(ds.name)) {
+            dataset[ds.name] = [];
+          }
+
+          if ((Array.isArray(ds.array), nets[ds.name])) {
+            ds.array.forEach(arr => {
+              if (!data.hasOwnProperty(ds.name)) {
+                data[ds.name] = [];
+              }
+
+              data[ds.name].push(arr.data);
+
+              var temp = getArr(data[ds.name][data[ds.name].length - 1].date - nets[ds.name].model.options.interval / 2, data[ds.name], nets[ds.name].model);
+
+              if (temp && temp.filter(t => isNaN(t)).length < 1) {
+                if (!dataset.hasOwnProperty(ds.name)) {
+                  dataset[ds.name] = [];
+                }
+                dataset[ds.name].push({
+                  input: temp.slice(0, nets[ds.name].model.layers.find(i => i.type === "input").width),
+                  output: temp.slice(-nets[ds.name].model.layers.find(i => i.type === "output").width)
+                });
+              } else {
+                console.log("неподходящие данные");
+              }
+            });
+          } else {
+            console.log("Не массив");
+          }
+        });
+      } else {
+        console.log("Нет данных");
+      }
+    })
+    .catch(e => {
+      console.log(e);
+    });
+});
+
 var lastValue = null;
-var timeInterval = 200;
-var iters = 10000;
-var inputSize = 10;
-var outputSize = 20;
+
 var normalize = 10000;
-function getArr(time, data) {
-  if (data && data[0].date < Date.now() - timeInterval * (inputSize + outputSize) - timeInterval * 3) {
+function getArr(time, data, netModel) {
+  if (
+    data &&
+    data[0].date < Date.now() - netModel.options.interval * (netModel.layers.find(i => i.type === "input").width + netModel.layers.find(i => i.type === "output").width) - netModel.options.interval * 3
+  ) {
     let arr = [];
-    for (var i = time - timeInterval / 2; i > time - (inputSize + outputSize) * timeInterval; i -= timeInterval) {
+    for (
+      var i = time - netModel.options.interval / 2;
+      i > time - (netModel.layers.find(i => i.type === "input").width + netModel.layers.find(i => i.type === "output").width) * netModel.options.interval;
+      i -= netModel.options.interval
+    ) {
       var maxP;
       var maxPt;
       var minP;
@@ -94,38 +150,61 @@ function getArr(time, data) {
   }
 }
 
-setInterval(() => {
-  fetch("https://min-api.cryptocompare.com/data/pricemulti?fsyms=BTC&tsyms=USD")
-    .then(res => {
-      return res.json();
-    })
-    .then(d => {
-      if (lastValue !== d.BTC.USD) {
-        data.push({ value: d.BTC.USD, date: Date.now() });
-        //console.log(d)
-
-        var temp = getArr(data[data.length - 1].date - timeInterval / 2, data);
-
-        if (temp && temp.filter(t => isNaN(t)).length < 1) {
-          if (!dataset.hasOwnProperty("test")) {
-            dataset["test"] = [];
+setTimeout(() => {
+  setInterval(() => {
+    fetch("https://min-api.cryptocompare.com/data/pricemulti?fsyms=BTC&tsyms=USD")
+      .then(res => {
+        return res.json();
+      })
+      .then(d => {
+        if (lastValue !== d.BTC.USD) {
+          if (!data.hasOwnProperty("BTC")) {
+            data["BTC"] = [];
           }
-          dataset["test"].push({ input: temp.slice(0, inputSize), output: temp.slice(-outputSize) });
-        } else {
-          console.log("неподходящие данные");
+          data["BTC"].push({ value: d.BTC.USD, date: Date.now() });
+          var newData = Data({ data: { value: d.BTC.USD, date: Date.now() } });
+          newData
+            .save()
+            .then(nde => {
+              DataSet.findOne({ name: "BTC" }).then(e => {
+                if (e) {
+                  e.array.push(nde._id);
+                  e
+                    .save()
+                    .then(() => {})
+                    .catch(e => {
+                      console.log(e);
+                    });
+                } else {
+                  console.error("No");
+                }
+              });
+            })
+            .catch(e => {
+              console.log(e);
+            });
+
+          var temp = getArr(data["BTC"][data["BTC"].length - 1].date - nets["BTC"].model.options.interval / 2, data["BTC"], nets["BTC"].model);
+
+          if (temp && temp.filter(t => isNaN(t)).length < 1) {
+            if (!dataset.hasOwnProperty("BTC")) {
+              dataset["BTC"] = [];
+            }
+            dataset["BTC"].push({
+              input: temp.slice(0, nets["BTC"].model.layers.find(i => i.type === "input").width),
+              output: temp.slice(-nets["BTC"].model.layers.find(i => i.type === "output").width)
+            });
+          } else {
+            console.log("неподходящие данные");
+          }
         }
-        //console.log(data)
-
-        console.log(data && Date.now() - timeInterval * (inputSize + outputSize) - data[0].date);
-      }
-      lastValue = d.BTC.USD;
-    })
-    .catch(err => {
-      console.error(err);
-    });
-}, 2000);
-
-var learnRate = 0.3;
+        lastValue = d.BTC.USD;
+      })
+      .catch(err => {
+        console.error(err);
+      });
+  }, 2000);
+}, 20000);
 
 io.on("connection", function(socket) {
   socket.on("netsInfo", cb => {
@@ -140,6 +219,40 @@ io.on("connection", function(socket) {
     });
     cb(null, temp);
   });
+  socket.on("dataSetsInfo", cb => {
+    if (typeof cb !== "function") {
+      return null;
+    }
+
+    DataSet.find({})
+      .then(e => {
+        cb(null, e);
+      })
+      .catch(e => {
+        cb(e);
+        console.log(e);
+      });
+  });
+  socket.on("netHistory", (name, cb) => {
+    if (typeof cb !== "function") {
+      return null;
+    }
+
+    NeuralNet.findOne({ name: name })
+      .populate({
+        path: "versions",
+        select: { maps: 0 }
+      })
+
+      .then(e => {
+        cb(null, e);
+      })
+      .catch(e => {
+        cb(e);
+        console.log(e);
+      });
+  });
+
   socket.on("save", (name, options, cb) => {
     if (typeof cb !== "function") {
       return null;
@@ -156,20 +269,33 @@ io.on("connection", function(socket) {
       return null;
     }
     try {
-      var input = getArr(data[data.length - 1].date - timeInterval / 2, data);
+      var input = getArr(data[opt.name][data[opt.name].length - 1].date - nets[opt.name].model.options.interval / 2, data[opt.name], nets[opt.name].model);
+
       if (input) {
         if (nets[opt.name]) {
-          var temprun = nets[opt.name].run(input.slice(-inputSize));
+          var temprun;
+
+          switch (nets[opt.name].model.type) {
+            case "brain.js":
+              temprun = nets[opt.name].run(input.slice(-nets[opt.name].model.layers.find(i => i.type === "input").width));
+              break;
+            case "synaptic":
+              temprun = nets[opt.name].activate(input.slice(-nets[opt.name].model.layers.find(i => i.type === "input").width));
+              break;
+            default:
+              break;
+          }
+
           var temp = temprun.reverse().map((item, i) => {
             return {
               name: "prog",
-              date: data[data.length - 1].date + i * timeInterval,
+              date: data[opt.name][data[opt.name].length - 1].date + i * nets[opt.name].model.options.interval,
               value: item
             };
           });
           temp = temp.concat(
-            data.map(item => {
-              return { name: "BTC USD", date: item.date, value: item.value };
+            data[opt.name].map(item => {
+              return { name: opt.name, date: item.date, value: item.value };
             })
           );
           cb(null, temp);
@@ -180,6 +306,7 @@ io.on("connection", function(socket) {
         cb({ message: "Датасет слишком маленький" });
       }
     } catch (e) {
+      console.error(e);
       cb(e);
     }
   });
@@ -199,33 +326,3 @@ io.on("connection", function(socket) {
     }
   });
 });
-
-function infTrain() {
-  var promises = [];
-
-  Object.keys(nets).forEach(net => {
-    if (dataset.hasOwnProperty(net)) {
-      if (nets[net].model.options.status) {
-        promises.push(
-          new Promise((resolve, reject) => {
-            nets[net].train(dataset[net], nets[net].model.options);
-            resolve();
-          })
-        );
-      }
-    }
-  });
-
-  if (promises.length) {
-    Promise.all(promises)
-      .then(values => {
-        setTimeout(infTrain, 10);
-      })
-      .catch(err => {
-        console.log(err);
-      });
-  } else {
-    setTimeout(infTrain, 1000);
-  }
-}
-infTrain();

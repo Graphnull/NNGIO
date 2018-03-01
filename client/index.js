@@ -3,7 +3,7 @@ import ReactDOM from "react-dom";
 import "./index.css";
 import { DatePicker, Button, Slider } from "antd";
 import socket from "./socket";
-import { Chart, Axis, Tooltip, Geom } from "bizcharts";
+
 import MenuN from "./menu";
 import Spin from "./spiner";
 import moment from "moment";
@@ -32,7 +32,6 @@ class App extends Component {
     });
   };
   componentDidMount() {
-   
     this.update();
     socket.on("connect", () => {
       this.update();
@@ -41,32 +40,30 @@ class App extends Component {
   render() {
     return (
       <div>
-        <div style={{ 
-            width: "100%", 
-            height: "100%", 
+        <div
+          style={{
+            width: "100%",
+            height: "100%",
             position: "fixed",
-            zIndex:'-1', 
-            backgroundPosition: "center", 
-            backgroundSize: "cover", 
-            backgroundImage: "url(" + img + ")" 
+            zIndex: "-1",
+            backgroundPosition: "center",
+            backgroundSize: "cover",
+            backgroundImage: "url(" + img + ")"
           }}
         />
-         <div className="animate-area"
-         style={{ 
-         
-            
-            backgroundImage: "url(" + img2 + ")" 
+        <div
+          className="animate-area"
+          style={{
+            backgroundImage: "url(" + img2 + ")"
           }}
         />
-          <div className="animate-area2"
-          style={{ 
-            
-            
-            backgroundImage: "url(" + img3 + ")" 
+        <div
+          className="animate-area2"
+          style={{
+            backgroundImage: "url(" + img3 + ")"
           }}
         />
-        <div style={{padding:'20px'}}>
-            
+        <div style={{ padding: "20px" }}>
           {this.state.loading && <Spin />}
           <MenuN
             update={this.update}
