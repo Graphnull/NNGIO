@@ -1,6 +1,6 @@
 import React, { Component } from "react";
 import ReactDOM from "react-dom";
-import { DatePicker, Input, Button, Card, InputNumber, Row, Col, message, Divider, Tabs } from "antd";
+import { DatePicker, Input, Button, Card, InputNumber, Row, Col, message, Divider, Tabs, Slider } from "antd";
 import socket from "./socket";
 import { Chart, Axis, Tooltip, Geom } from "bizcharts";
 import moment from "moment";
@@ -10,12 +10,19 @@ const TabPane = Tabs.TabPane;
 export default class TabsMenu extends Component {
   state = {
     data: [],
+    startValue: 0,
+    endValue: Date.now() + 1000 * 60 * 120,
     loading: false
   };
+  min = Date.now();
+  changeLoading = () => {
+    this.setState({ loading: !this.state.loading });
+  };
+
   render() {
     return (
       <div style={{ position: "relative" }}>
-        {this.state.loading && <Spin />}
+        {this.state.loading && <Spin delete={this.changeLoading} />}
         <Tabs type="card">
           <TabPane tab="Датасет" key="1">
             <div>
@@ -31,7 +38,7 @@ export default class TabsMenu extends Component {
                     } else {
                       this.setState({
                         data: data.map(item => {
-                          if (item.name === "prog") {
+                          if (item.name !== "BTC") {
                             item.value = item.value * 10000 + 5000;
                             return item;
                           } else {
@@ -49,13 +56,33 @@ export default class TabsMenu extends Component {
             </div>
             {this.state.data.length && (
               <Card>
-                <Chart height={400} data={this.state.data} style={{ width: "100%" }} forceFit>
+                <Chart
+                  height={400}
+                  data={this.state.data.filter(i => {
+                    if (i.date < this.min) {
+                      this.min = i.date;
+                    }
+
+                    return i.date > this.state.startValue && i.date < this.state.endValue;
+                  })}
+                  style={{ width: "100%" }}
+                  forceFit
+                >
                   <Axis label={{ textStyle: { fill: "#ff7f77" }, formatter: e => moment(parseInt(e, 10)).fromNow() }} name="date" />
                   <Axis label={{ textStyle: { fill: "#ff7f77" } }} name="value" />
                   <Tooltip crosshairs={{ type: "y" }} />
                   <Geom type="line" position="date*value" size={2} color={"name"} />
-                  <Geom type="point" position="date*value" size={4} color={"name"} />
                 </Chart>
+                {this.state.data[0].date}
+                <Slider
+                  range
+                  min={this.min}
+                  max={Date.now() + 1000 * 60 * 120}
+                  value={[this.state.startValue, this.state.endValue]}
+                  onChange={e => {
+                    this.setState({ startValue: e[0], endValue: e[1] });
+                  }}
+                />
               </Card>
             )}
           </TabPane>

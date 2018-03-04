@@ -29,8 +29,8 @@ const NetInfo = props => {
       </FormItem>
       <FormItem {...formItemLayout} label="Слои" style={{ marginBottom: "0px", display: "flex" }}>
         <div>
-          {props.layers.map(l => (
-            <div style={{ display: "flex" }}>
+          {props.layers.map((l, i) => (
+            <div key={i} style={{ display: "flex" }}>
               <div>{l.type}:</div>
               <div>{l.width}</div>
             </div>
@@ -56,9 +56,9 @@ class DataSets extends Component {
   render() {
     return (
       <div>
-        {this.state.list.map(i => {
+        {this.state.list.map((i, index) => {
           return (
-            <div>
+            <div key={index}>
               <h2>{i.name}</h2>
               <div>Тип:{i.type}</div>
               <div>Обновление:{moment(i.updatedAt).fromNow()}</div>

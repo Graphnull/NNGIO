@@ -57,12 +57,13 @@ function loadNets(nets, cb) {
             break;
           case "synaptic":
             var last = net.last;
+
             var temp = new Architect.Perceptron(
               last.layers.find(i => i.type === "input").width,
-              last.layers.filter(i => i.type === "hidden").map(i => i.width),
+              ...last.layers.filter(i => i.type === "hidden").map(i => i.width),
               last.layers.find(i => i.type === "output").width
             );
-            console.log("dsfsdfdddd");
+
             if (Array.isArray(last.maps) && last.maps[0]) {
               nets[net.name] = Network.fromJSON(JSON.parse(last.maps[0].toString("utf8")));
             } else {
@@ -127,8 +128,8 @@ function createNew(nets, opt, cb) {
           });
           break;
         case "synaptic":
-          var bnet = new Architect.Perceptron(opt.input, opt.hidden, opt.output);
-
+          var bnet = new Architect.Perceptron(opt.input, ...opt.hidden, opt.output);
+          console.log(...opt.hidden);
           var net = Net({
             date: Date.now(),
             type: opt.type,
@@ -137,7 +138,7 @@ function createNew(nets, opt, cb) {
               interval: opt.interval,
               iterations: 10000,
               errorThresh: 0.0000000005,
-              learningRate: 0.3,
+              rate: 0.3,
               momentum: 0.1,
               log: false,
               callbackPeriod: 1000,
@@ -204,10 +205,15 @@ function infTrain(nets, dataset) {
                   break;
                 case "synaptic":
                   var trainer = new Trainer(nets[net]);
-
+                  console.log(dataset[net].length);
                   trainer.train(dataset[net], {
                     ...nets[net].model.options,
-                    ...{ error: nets[net].model.options.errorThresh, schedule: { every: nets[net].model.options.callbackPeriod, do: nets[net].model.options.callback }, cost: Trainer.cost.MSE }
+                    ...{
+                      rate: nets[net].model.options.learningRate,
+                      error: nets[net].model.options.errorThresh,
+                      schedule: { every: nets[net].model.options.callbackPeriod, do: nets[net].model.options.callback },
+                      cost: Trainer.cost.CROSS_ENTROPY
+                    }
                   });
 
                 default:

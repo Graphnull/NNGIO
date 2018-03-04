@@ -19,7 +19,9 @@ class App extends Component {
     hidden: 4,
     loading: false
   };
-
+  changeLoading = () => {
+    this.setState({ loading: !this.state.loading });
+  };
   update = () => {
     this.setState({ loading: true });
     socket.emit("netsInfo", (err, info) => {
@@ -37,6 +39,7 @@ class App extends Component {
       this.update();
     });
   }
+
   render() {
     return (
       <div>
@@ -63,8 +66,9 @@ class App extends Component {
             backgroundImage: "url(" + img3 + ")"
           }}
         />
-        <div style={{ padding: "20px" }}>
-          {this.state.loading && <Spin />}
+
+        <div style={{ position: "absolute", width: "100%", height: "100%" }}>
+          {this.state.loading && <Spin text={"Идет соединение с сервером..."} />}
           <MenuN
             update={this.update}
             neuralList={this.state.data.map(item => {

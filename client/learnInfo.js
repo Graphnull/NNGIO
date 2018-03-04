@@ -15,6 +15,9 @@ export default class LearnInfo extends Component {
     data: [],
     loading: false
   };
+  changeLoading = () => {
+    this.setState({ loading: !this.state.loading });
+  };
   render() {
     return (
       <div
@@ -25,7 +28,7 @@ export default class LearnInfo extends Component {
           alignItems: "stretch"
         }}
       >
-        {this.state.loading && <Spin />}
+        {this.state.loading && <Spin delete={this.changeLoading} />}
 
         <div>
           <Form
@@ -156,6 +159,9 @@ class NetHistory extends Component {
     endValue: Date.now(),
     loading: false
   };
+  changeLoading = () => {
+    this.setState({ loading: !this.state.loading });
+  };
   componentDidMount() {
     this.setState({ loading: true });
     socket.emit("netHistory", this.props.name, (err, data) => {
@@ -168,7 +174,7 @@ class NetHistory extends Component {
         this.setState({
           loading: false,
           history: data.versions.map(i => {
-            return { ...i, date: moment(i.date).valueOf(), iterations: i.options.iterations, momentum: i.options.momentum };
+            return { ...i, date: moment(i.date).valueOf(), error: i.error * 1000000, iterations: i.options.iterations, momentum: i.options.momentum };
           })
         });
       }
@@ -178,14 +184,13 @@ class NetHistory extends Component {
   render() {
     return (
       <div style={{ position: "relative" }}>
-        {this.state.loading && <Spin />}
+        {this.state.loading && <Spin delete={this.changeLoading} />}
         <h2>История:</h2>
         <div>
           <Card>
             <Chart
               height={400}
               data={this.state.history.filter(i => {
-                console.log(i.date > this.state.startValue && i.date < this.state.endValue);
                 return i.date > this.state.startValue && i.date < this.state.endValue;
               })}
               style={{ width: "100%" }}
@@ -194,9 +199,8 @@ class NetHistory extends Component {
               <Axis label={{ textStyle: { fill: "#ff7f77" }, formatter: e => moment.unix(e / 1000).fromNow() }} name="date" />
               <Axis label={{ textStyle: { fill: "#ff7f77" } }} name="error" />
               <Tooltip crosshairs={{ type: "y" }} />
-              <Geom type="line" position="date*iterations" size={2} color={"blue"} />
+
               <Geom type="line" position="date*error" size={2} color={"green"} />
-              <Geom type="line" position="date*momentum" size={2} color={"red"} />
             </Chart>
             <Slider
               range

@@ -56,7 +56,7 @@ setInterval(() => {
         console.log(e);
       });
   });
-}, 10000);
+}, 12000);
 var nets = {};
 var data = {};
 
@@ -66,7 +66,8 @@ infTrain(nets, dataset);
 loadNets(nets, () => {
   DataSet.find({})
     .populate({
-      path: "array"
+      path: "array",
+      options: { sort: { date: 1 } }
     })
     .then(dss => {
       if (dss) {
@@ -89,6 +90,10 @@ loadNets(nets, () => {
                 if (!dataset.hasOwnProperty(ds.name)) {
                   dataset[ds.name] = [];
                 }
+                console.log(temp, {
+                  input: temp.slice(0, nets["BTC"].model.layers.find(i => i.type === "input").width),
+                  output: temp.slice(-nets["BTC"].model.layers.find(i => i.type === "output").width)
+                });
                 dataset[ds.name].push({
                   input: temp.slice(0, nets[ds.name].model.layers.find(i => i.type === "input").width),
                   output: temp.slice(-nets[ds.name].model.layers.find(i => i.type === "output").width)
@@ -116,7 +121,7 @@ var normalize = 10000;
 function getArr(time, data, netModel) {
   if (
     data &&
-    data[0].date < Date.now() - netModel.options.interval * (netModel.layers.find(i => i.type === "input").width + netModel.layers.find(i => i.type === "output").width) - netModel.options.interval * 3
+    data[0].date < Date.now() - netModel.options.interval * (netModel.layers.find(i => i.type === "input").width + netModel.layers.find(i => i.type === "output").width) - netModel.options.interval / 2
   ) {
     let arr = [];
     for (
@@ -190,6 +195,7 @@ setTimeout(() => {
             if (!dataset.hasOwnProperty("BTC")) {
               dataset["BTC"] = [];
             }
+
             dataset["BTC"].push({
               input: temp.slice(0, nets["BTC"].model.layers.find(i => i.type === "input").width),
               output: temp.slice(-nets["BTC"].model.layers.find(i => i.type === "output").width)
@@ -277,27 +283,39 @@ io.on("connection", function(socket) {
 
           switch (nets[opt.name].model.type) {
             case "brain.js":
-              temprun = nets[opt.name].run(input.slice(-nets[opt.name].model.layers.find(i => i.type === "input").width));
+              temprun = nets[opt.name].run(input.slice(nets[opt.name].model.layers.find(i => i.type === "input").width));
               break;
             case "synaptic":
-              temprun = nets[opt.name].activate(input.slice(-nets[opt.name].model.layers.find(i => i.type === "input").width));
+              temprun = nets[opt.name].activate(input.slice(nets[opt.name].model.layers.find(i => i.type === "input").width - 1));
+
               break;
             default:
               break;
           }
 
-          var temp = temprun.reverse().map((item, i) => {
+          var temp = temprun.map((item, i) => {
             return {
               name: "prog",
               date: data[opt.name][data[opt.name].length - 1].date + i * nets[opt.name].model.options.interval,
               value: item
             };
           });
-          temp = temp.concat(
-            data[opt.name].map(item => {
-              return { name: opt.name, date: item.date, value: item.value };
-            })
-          );
+          temp = temp
+            .concat(
+              data[opt.name].map(item => {
+                return { name: opt.name, date: item.date, value: item.value };
+              })
+            )
+            .concat(
+              input.slice(nets[opt.name].model.layers.find(i => i.type === "input").width - 1).map((item, i) => {
+                return {
+                  name: "act",
+                  date: data[opt.name][data[opt.name].length - 1].date + i * nets[opt.name].model.options.interval,
+                  value: item
+                };
+              })
+            );
+
           cb(null, temp);
         } else {
           cb({ message: "Такой сети не найдено" });
