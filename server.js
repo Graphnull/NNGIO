@@ -1,24 +1,11 @@
-var brain = require("brain.js");
 var { io } = require("./socket");
-var WebSocket = require("socket.io-client");
 var moment = require("moment");
 var fetch = require("isomorphic-fetch");
 var { Net, NeuralNet, Data, DataSet } = require("./db");
 var { stringifyError } = require("./helper");
 var { createNew, loadNets, changeOptions, infTrain } = require("./neuralNet");
 var mongoose = require("mongoose");
-
-/*
-var csocket=WebSocket.connect('wss://streamer.cryptocompare.com')
-
-csocket.emit('SubAdd', { subs: ['0~Poloniex~BTC~USD'] } ); 
-
-csocket.on('connect',()=>{console.log('connect')})
-
-csocket.on('m',(data)=>{
-    //var tradeField = data.substr(0, data.indexOf("~"))
-    console.log(data)
-})*/
+var dataset = require("./dataset");
 
 setInterval(() => {
   Object.keys(nets).forEach(net => {
@@ -57,6 +44,7 @@ setInterval(() => {
       });
   });
 }, 12000);
+
 var nets = {};
 var data = {};
 
@@ -90,10 +78,7 @@ loadNets(nets, () => {
                 if (!dataset.hasOwnProperty(ds.name)) {
                   dataset[ds.name] = [];
                 }
-                console.log(temp, {
-                  input: temp.slice(0, nets["BTC"].model.layers.find(i => i.type === "input").width),
-                  output: temp.slice(-nets["BTC"].model.layers.find(i => i.type === "output").width)
-                });
+
                 dataset[ds.name].push({
                   input: temp.slice(0, nets[ds.name].model.layers.find(i => i.type === "input").width),
                   output: temp.slice(-nets[ds.name].model.layers.find(i => i.type === "output").width)
@@ -154,7 +139,7 @@ function getArr(time, data, netModel) {
     return null;
   }
 }
-
+/*
 setTimeout(() => {
   setInterval(() => {
     fetch("https://min-api.cryptocompare.com/data/pricemulti?fsyms=BTC&tsyms=USD")
@@ -211,7 +196,7 @@ setTimeout(() => {
       });
   }, 2000);
 }, 20000);
-
+*/
 io.on("connection", function(socket) {
   socket.on("netsInfo", cb => {
     if (typeof cb !== "function") {
@@ -225,20 +210,7 @@ io.on("connection", function(socket) {
     });
     cb(null, temp);
   });
-  socket.on("dataSetsInfo", cb => {
-    if (typeof cb !== "function") {
-      return null;
-    }
 
-    DataSet.find({})
-      .then(e => {
-        cb(null, e);
-      })
-      .catch(e => {
-        cb(e);
-        console.log(e);
-      });
-  });
   socket.on("netHistory", (name, cb) => {
     if (typeof cb !== "function") {
       return null;
@@ -270,6 +242,7 @@ io.on("connection", function(socket) {
     }
   });
 
+  /*
   socket.on("activate", (opt, cb) => {
     if (typeof cb !== "function") {
       return null;
@@ -328,19 +301,11 @@ io.on("connection", function(socket) {
       cb(e);
     }
   });
+  */
   socket.on("createNew", (opt, cb) => {
     if (typeof cb !== "function") {
       return null;
     }
     createNew(nets, opt, cb);
-  });
-  socket.on("dataset", (opt, cb) => {
-    if (!Array.isArray(dataset[opt.net])) {
-      dataset[opt.net] = [];
-    }
-    dataset[opt.net].push({ input: opt.input, output: opt.output });
-    if (cb) {
-      cb(null);
-    }
   });
 });

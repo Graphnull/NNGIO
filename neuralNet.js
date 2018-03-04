@@ -129,7 +129,7 @@ function createNew(nets, opt, cb) {
           break;
         case "synaptic":
           var bnet = new Architect.Perceptron(opt.input, ...opt.hidden, opt.output);
-          console.log(...opt.hidden);
+          //console.log(...opt.hidden);
           var net = Net({
             date: Date.now(),
             type: opt.type,

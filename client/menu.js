@@ -10,6 +10,7 @@ import TabsMenu from "./tabs";
 import CreateNew from "./createNew";
 import LearnInfo from "./learnInfo";
 import { Chart, Axis, Tooltip, Geom } from "bizcharts";
+import CreateNewDataset from "./dataset";
 const FormItem = Form.Item;
 
 const NetInfo = props => {
@@ -96,6 +97,8 @@ export default class MenuN extends Component {
         {this.list()}
         <DataSets />
         <CreateNew />
+        <Divider />
+        <CreateNewDataset />
       </div>
     );
   }

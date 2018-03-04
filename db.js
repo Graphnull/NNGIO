@@ -32,6 +32,8 @@ global.errLog = function errLog(err) {
 
 var DataSchema = new mongoose.Schema({
   updatedAt: Date,
+  type: String,
+  test: { type: Boolean, default: false },
   data: mongoose.SchemaTypes.Mixed
 });
 DataSchema.pre("save", function(next) {
@@ -42,7 +44,7 @@ DataSchema.pre("save", function(next) {
 const Data = mongoose.model("Data", DataSchema);
 
 var DataSetSchema = new mongoose.Schema({
-  name: { type: String, required: true, unique: true },
+  name: { type: String, required: true, unique: true, index: true },
   type: String,
   updatedAt: Date,
   usedAt: Date,
@@ -57,8 +59,6 @@ DataSetSchema.pre("save", function(next) {
 });
 
 const DataSet = mongoose.model("DataSet", DataSetSchema);
-
-var test = DataSet({ name: "BTC", type: "line" });
 
 var LayerSchema = new mongoose.Schema({
   type: String,
