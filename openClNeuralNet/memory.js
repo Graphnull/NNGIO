@@ -11,8 +11,8 @@ module.exports.Memory = class Memory {
     this.width = width;
     this.height = height;
     this.cq = cq;
-    this.activateMap = cl.createBuffer(ctx, cl.MEM_READ_WRITE, this.width * this.height, null);
-    cl.enqueueFillBuffer(this.cq, this.activateMap, FLOATSIZE, 0, this.width * this.height, null, null);
+    this.activateMap = cl.createBuffer(ctx, cl.MEM_READ_WRITE, FLOATSIZE * this.width * this.height, null);
+    this.clearActivate();
   }
   wavelet() {
     //Вельвет преобразование на изображение
@@ -35,7 +35,7 @@ module.exports.Memory = class Memory {
 
         cl.enqueueWriteBuffer(this.cq, buffer_layerInfo, true, 0, INTSIZE * 5, consts);
 
-        cl.enqueueNDRangeKernel(this.cq, kernel_wavelet, 2, null, [this.width / layerinfo[0], this.height / layerinfo[2]], null);
+        cl.enqueueNDRangeKernel(this.cq, kernel_wavelet, 2, [0, 0], [this.width / layerinfo[0], this.height / layerinfo[2]], null);
 
         cl.finish(this.cq);
         layerinfo[2] = layerinfo[2] * 2;
@@ -46,7 +46,7 @@ module.exports.Memory = class Memory {
         consts.writeUInt32LE(layerinfo[3], 3 * INTSIZE);
 
         cl.enqueueWriteBuffer(this.cq, buffer_layerInfo, true, 0, INTSIZE * 5, consts);
-        cl.enqueueNDRangeKernel(this.cq, kernel_wavelet, 2, null, [this.width / layerinfo[0], this.height / layerinfo[2]], null);
+        cl.enqueueNDRangeKernel(this.cq, kernel_wavelet, 2, [0, 0], [this.width / layerinfo[0], this.height / layerinfo[2]], null);
         cl.finish(this.cq);
       }
       this.wavelet = true;
@@ -70,7 +70,7 @@ module.exports.Memory = class Memory {
         consts.writeUInt32LE(layerinfo[3], 3 * INTSIZE);
 
         cl.enqueueWriteBuffer(this.cq, buffer_layerInfo, true, 0, INTSIZE * 5, consts);
-        cl.enqueueNDRangeKernel(this.cq, kernel_unwavelet, 2, null, [this.width / layerinfo[0], this.height / layerinfo[2]], null);
+        cl.enqueueNDRangeKernel(this.cq, kernel_unwavelet, 2, [0, 0], [this.width / layerinfo[0], this.height / layerinfo[2]], null);
         cl.finish(this.cq);
 
         layerinfo[2] = layerinfo[2] / 2;
@@ -81,7 +81,7 @@ module.exports.Memory = class Memory {
         consts.writeUInt32LE(layerinfo[3], 3 * INTSIZE);
 
         cl.enqueueWriteBuffer(this.cq, buffer_layerInfo, true, 0, INTSIZE * 5, consts);
-        cl.enqueueNDRangeKernel(this.cq, kernel_unwavelet, 2, null, [this.width / layerinfo[0], this.height / layerinfo[2]], null);
+        cl.enqueueNDRangeKernel(this.cq, kernel_unwavelet, 2, [0, 0], [this.width / layerinfo[0], this.height / layerinfo[2]], null);
         cl.finish(this.cq);
         layerinfo[0] = layerinfo[0] / 2;
         consts.writeUInt32LE(layerinfo[0], 0 * INTSIZE);
@@ -91,17 +91,38 @@ module.exports.Memory = class Memory {
   }
 
   setActivate(buffer) {
-    var input = cl.createBuffer(ctx, cl.MEM_READ_ONLY, 1 * this.width * this.height, buffer);
+    var err;
 
-    //queueMain.enqueueWriteBuffer(buffer_videoInput, CL_TRUE, 0, sizeof(unsigned char) * width * height * 3, inputTemp2.data);
-    var KernelNormalize = getKernel("convertToFloat");
-    cl.setKernelArg(KernelNormalize, 0, "float*", this.activateMap);
-    cl.setKernelArg(KernelNormalize, 1, "unsigned char*", input);
-    cl.enqueueNDRangeKernel(this.cq, KernelNormalize, 1, null, [this.width * this.height], null);
-    cl.finish(this.cq);
+    var input = cl.createBuffer(ctx, cl.MEM_READ_ONLY | cl.MEM_COPY_HOST_PTR, 1 * this.width * this.height, buffer);
+    err = cl.finish(this.cq);
+    if (err) {
+      console.log("", err);
+    }
+    var convertToFloat = getKernel("convertToFloat");
+    err = cl.setKernelArg(convertToFloat, 0, "float*", this.activateMap);
+    if (err) {
+      console.log("", err);
+    }
+    err = cl.setKernelArg(convertToFloat, 1, "unsigned char*", input);
+    if (err) {
+      console.log("", err);
+    }
+    err = cl.finish(this.cq);
+    if (err) {
+      console.log(err);
+    }
+    err = cl.enqueueNDRangeKernel(this.cq, convertToFloat, 1, [0], [this.width * this.height], null);
+    if (err) {
+      console.log(err);
+    }
+    err = cl.finish(this.cq);
+    if (err) {
+      console.log("", err);
+    }
   }
   clearActivate() {
-    cl.enqueueFillBuffer(this.cq, this.activateMap, FLOATSIZE, 0, FLOATSIZE * this.width * this.height, null, null);
+    console.log(this.cq, this.activateMap, null, FLOATSIZE, 0, this.width * this.height);
+    //cl.enqueueFillBuffer(this.cq, this.activateMap, null, FLOATSIZE, 0, this.width * this.height);
   }
   getActivate() {
     var output = Buffer(FLOATSIZE * this.width * this.height);
@@ -110,7 +131,7 @@ module.exports.Memory = class Memory {
   }
   copyActivateFrom(layer) {
     if (layer.activateMap && layer.width * layer.height === this.width * this.height) {
-      cl.enqueueCopyBuffer(this.cq, this.activateMap, layer.activateMap, 0, FLOATSIZE * this.width * this.height * start, FLOATSIZE * this.width * this.height);
+      cl.enqueueCopyBuffer(this.cq, this.activateMap, layer.activateMap, 0, 0, FLOATSIZE * this.width * this.height);
     } else {
       new Error(`layer.width*layer.height=${layer.width * layer.height} != this.width*this.height=${this.width * this.height}`);
     }

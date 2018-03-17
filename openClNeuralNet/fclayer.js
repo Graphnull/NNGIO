@@ -27,13 +27,25 @@ module.exports.FCLayer = class FCLayer extends Memory {
 
   RELUactivate(cq, kern, NVALUES) {
     //long int start_s=GetTickCount();//test
+    var err;
 
-    cl.setKernelArg(getKernel("RELUActivate"), 0, "float*", this.activateMap);
-
-    cl.enqueueNDRangeKernel(this.cq, getKernel("RELUActivate"), 1, null, [this.width * this.height], null);
-
-    cl.finish(this.cq);
-
+    var RELUactivate = getKernel("RELUActivate");
+    err = cl.setKernelArg(RELUactivate, 0, "int16*", this.activateMap);
+    if (err) {
+      console.log(err);
+    }
+    err = cl.finish(this.cq);
+    if (err) {
+      console.log(err);
+    }
+    err = cl.enqueueNDRangeKernel(this.cq, RELUactivate, 1, [0], [this.width * this.height / 16], null);
+    if (err) {
+      console.log(err);
+    }
+    err = cl.finish(this.cq);
+    if (err) {
+      console.log(err);
+    }
     //printf("activate %i \n",GetTickCount()-start_s);
   }
   softMaxActivate() {
@@ -48,7 +60,7 @@ module.exports.FCLayer = class FCLayer extends Memory {
   }
 
   bind(layer) {
-    if (!hasOwnProperty(layer.id)) {
+    if (!this.connect.hasOwnProperty(layer.id)) {
       var weight = new Weight();
       weight.width = this.width * layer.width;
       weight.height = this.height * layer.height;
@@ -56,17 +68,42 @@ module.exports.FCLayer = class FCLayer extends Memory {
       weight.buffer = cl.createBuffer(ctx, cl.MEM_READ_WRITE, FLOATSIZE * weight.width * weight.height, null);
       weight.bufferTemp = cl.createBuffer(ctx, cl.MEM_READ_WRITE, FLOATSIZE * weight.width * weight.height, null);
       cl.enqueueFillBuffer(this.cq, weight.buffer, FLOATSIZE, 0, weight.width * weight.height, null, null);
-      this.bind[layer.id] = weight;
+      this.connect[layer.id] = weight;
     }
   }
 
   multiple(layer) {
+    var err;
     var KernelMultiple = getKernel("multiple");
-    cl.setKernelArg(KernelMultiple, 0, "float*", layer.activateMap);
-    cl.setKernelArg(KernelMultiple, 1, "float*", this.activateMap);
-    cl.setKernelArg(KernelMultiple, 2, "float*", this.connect[layer.id].buffer);
-    cl.setKernelArg(KernelMultiple, 3, "int*", cl.createBuffer(ctx, cl.MEM_READ_ONLY | cl.MEM_COPY_HOST_PTR, INTSIZE * 1, new Buffer(4).writeUInt32LE(1, layer.width * layer.height)));
-    cl.enqueueNDRangeKernel(this.cq, KernelMultiple, 1, null, [this.width * this.height], null);
-    cl.finish(this.cq);
+    err = cl.setKernelArg(KernelMultiple, 0, "float*", layer.activateMap);
+    if (err) {
+      console.log("", err);
+    }
+    err = cl.setKernelArg(KernelMultiple, 1, "float*", this.activateMap);
+    if (err) {
+      console.log("", err);
+    }
+    err = cl.setKernelArg(KernelMultiple, 2, "float*", this.connect[layer.id].buffer);
+    if (err) {
+      console.log("", err);
+    }
+    var param = new Buffer(INTSIZE);
+    param.writeUInt32LE(layer.width * layer.height, 0);
+    err = cl.setKernelArg(KernelMultiple, 3, "int*", cl.createBuffer(ctx, cl.MEM_READ_ONLY | cl.MEM_COPY_HOST_PTR, INTSIZE * 1, param));
+    if (err) {
+      console.log("", err);
+    }
+    err = cl.finish(this.cq);
+    if (err) {
+      console.log(err);
+    }
+    err = cl.enqueueNDRangeKernel(this.cq, KernelMultiple, 1, [0], [this.width * this.height], null);
+    if (err) {
+      console.log(t);
+    }
+    err = cl.finish(this.cq);
+    if (err) {
+      console.log(t);
+    }
   }
 };

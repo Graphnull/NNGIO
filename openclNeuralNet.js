@@ -2,69 +2,78 @@ var cl = require("./../node-opencl-master/lib/opencl"); //TODO
 var { ctx, device } = require("./openCLHelper");
 var { Memory } = require("./openClNeuralNet/memory");
 var { FCLayer } = require("./openClNeuralNet/fclayer");
-var { loadingKernels } = require("./openCLHelper/kernels");
+var { loadingKernels, getKernel } = require("./openCLHelper/kernels");
+var { DataSet } = require("./db");
+var sharp = require("sharp");
 loadingKernels(device);
-var squareString = `
-__kernel void square(
-  __global uint* input,
- __global uint* output,
- unsigned int count)
-{
-  unsigned int i = get_global_id(0);
-  if (i < count)
-      output[i] = input[i] * input[i];
-}`;
 
-Square();
-function Square() {
-  console.log("Using Buffer");
-
-  var NVALUES = 100;
-  var BYTES_PER_ELEMENT = Uint32Array.BYTES_PER_ELEMENT;
-
-  var inputs = Buffer(NVALUES * BYTES_PER_ELEMENT); // *4 because uint is 4 bytes.
-  var outputs = Buffer(NVALUES * BYTES_PER_ELEMENT);
-  outputs.fill(0);
-
-  // Note: using little endian for Intel-based machines, GPU follows same convention
-  // as CPU typically but it should be detected with clGetDeviceInfo(CL_DEVICE_ENDIAN_LITTLE)
-
-  for (var i = 0; i < NVALUES; ++i) {
-    inputs.writeUInt32LE(i, i * BYTES_PER_ELEMENT); // inputs[offset]=i with offset=i*4 since each uint32 value takes 4 bytes
-  }
-
-  var source = squareString;
-
-  var prog = cl.createProgramWithSource(ctx, source);
-
-  cl.buildProgram(prog);
-
-  var kern = cl.createKernel(prog, "square");
-
-  var inputsMem = cl.createBuffer(ctx, cl.MEM_READ_ONLY | cl.MEM_COPY_HOST_PTR, NVALUES * BYTES_PER_ELEMENT, inputs);
-  var outputsMem = cl.createBuffer(ctx, cl.MEM_WRITE_ONLY | cl.MEM_COPY_HOST_PTR, NVALUES * BYTES_PER_ELEMENT, outputs);
-
-  cl.setKernelArg(kern, 0, "uint*", inputsMem);
-  cl.setKernelArg(kern, 1, "uint*", outputsMem);
-  cl.setKernelArg(kern, 2, "uint", NVALUES);
-
-  var cq;
-  if (cl.createCommandQueueWithProperties !== undefined) {
-    cq = cl.createCommandQueueWithProperties(ctx, device, []); // OpenCL 2
-  } else {
-    cq = cl.createCommandQueue(ctx, device, null); // OpenCL 1.x
-  }
-  //console.log(ctx);
-  var mem = new FCLayer(cq, 10, 10);
-
-  mem.RELUactivate(cq, kern, NVALUES);
-  cl.enqueueNDRangeKernel(cq, kern, 1, null, [NVALUES], null);
-
-  cl.enqueueReadBuffer(cq, outputsMem, true, 0, NVALUES * BYTES_PER_ELEMENT, outputs); // should contains i^2 for i=0,...,10000-1
-
-  cl.finish(cq);
-
-  console.log("#elems in outputs: " + outputs.length);
-  var last_value = outputs.readUInt32LE(BYTES_PER_ELEMENT * (NVALUES - 1));
-  console.log("Last value is : " + last_value + " should be " + (NVALUES - 1) * (NVALUES - 1));
+var cq;
+if (cl.createCommandQueueWithProperties !== undefined) {
+  cq = cl.createCommandQueueWithProperties(ctx, device, []); // OpenCL 2
+} else {
+  cq = cl.createCommandQueue(ctx, device, null); // OpenCL 1.x
 }
+
+var input = new Memory(cq, 28, 28);
+var output0 = new FCLayer(cq, 28, 28);
+var output1 = new FCLayer(cq, 28, 28);
+var output2 = new FCLayer(cq, 28, 28);
+var output3 = new FCLayer(cq, 128, 128);
+output0.bind(input);
+output1.bind(output0);
+output2.bind(output1);
+output3.bind(output2);
+
+var start = Date.now();
+
+DataSet.findOne({ name: "mnist" })
+  .populate({ path: "array", options: { limit: 1800 } })
+  .then(dataset => {
+    console.log("get from db complete", (Date.now() - start) / 1000, "second");
+    prepareImages(dataset);
+  });
+
+function prepareImages(dataset) {
+  var start = Date.now();
+  Promise.all(
+    dataset.array.map(image => {
+      //console.log("image.data.image.buffer", image.data.image.buffer);
+      return sharp(image.data.image.buffer)
+        .greyscale()
+
+        .raw()
+        .toBuffer();
+    })
+  )
+    .then(images => {
+      console.log("image convert complete", (Date.now() - start) / 1000, "second");
+
+      neuralLearning(images);
+    })
+    .catch(err => {
+      console.log(err);
+    });
+}
+function neuralLearning(buffers) {
+  var start = Date.now();
+  buffers.forEach((image, index) => {
+    if (index % 100 === 0) {
+      console.log(index);
+    }
+
+    input.setActivate(image);
+    output0.multiple(input);
+    output0.RELUactivate();
+    output1.multiple(output0);
+    output1.RELUactivate();
+    output2.multiple(output1);
+    output2.RELUactivate();
+    output3.multiple(output2);
+    output3.RELUactivate();
+  });
+
+  console.log("complete", (Date.now() - start) / 1000, "second");
+}
+process.on("data", data => {
+  console.log(data);
+});

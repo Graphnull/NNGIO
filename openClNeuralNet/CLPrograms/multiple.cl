@@ -1,4 +1,4 @@
-__kernel void kernel multiple( __global float* bufferIn,  __global float* bufferOut ,__global float* bufferW, __global int* layerInfo){
+__kernel void kernel multiple(  __global float* bufferIn,  __global float* bufferOut , __global float* bufferW, __constant int* layerInfo){
  
  int idx = get_global_id(0);
 
@@ -7,7 +7,7 @@ __kernel void kernel multiple( __global float* bufferIn,  __global float* buffer
 float out=bufferOut[idx];
 for(size_t x=0;x!=(layerInfo[0]); x++){
         
-        out+=distance(bufferIn[x],bufferW[idx*layerInfo[0]+x])*0.1;
+        out+=distance(bufferIn[x],bufferW[idx*layerInfo[0]+x]);
 
 }
 bufferOut[idx]=out;
