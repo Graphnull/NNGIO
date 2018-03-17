@@ -5,17 +5,25 @@ var { createNew, loadNets, changeOptions, infTrain } = require("./neuralNet");
 var mongoose = require("mongoose");
 var bson = require("bson");
 var i = 0;
+var startTime = null;
 io.on("connection", function(socket) {
   socket.on("dataset/add", (datasetName, array, cb) => {
-    Promise.all(
-      array.map(opt => {
-        return Data({ type: opt.type, data: { width: opt.data.width, height: opt.data.height, depth: opt.data.depth, bit: opt.data.bit, image: opt.data.image } }).save();
-      })
-    )
+    console.log("add", datasetName);
+    startTime = Date.now();
+    var access = true;
+    var goodData = array.map(opt => {
+      return { type: opt.type, data: { width: opt.data.width, height: opt.data.height, depth: opt.data.depth, bit: opt.data.bit, image: opt.data.image } };
+    });
+    if (!access) {
+      return cb({ message: "Неправильные данные" });
+    }
+    delete array;
+    Data.create(goodData)
       .then(ndatas => {
         DataSet.updateOne({ name: datasetName }, { $push: { array: { $each: ndatas.map(i => i._id) } } })
           .then(e => {
-            console.log(e, i++);
+            delete ndatas;
+            console.log(e, i++, Date.now() - startTime);
             if (cb) {
               cb(null);
             }
