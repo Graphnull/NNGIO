@@ -121,8 +121,7 @@ module.exports.Memory = class Memory {
     }
   }
   clearActivate() {
-    //TODO
-    //cl.enqueueFillBuffer(this.cq, this.activateMap, 0, FLOATSIZE, 0, FLOATSIZE * this.width * this.height);
+    cl.enqueueFillBuffer(this.cq, this.activateMap, FLOATSIZE, 0, 0, new Uint32Array([FLOATSIZE * this.width * this.height], 0, 1));
   }
   getActivate() {
     var output = Buffer(FLOATSIZE * this.width * this.height);
