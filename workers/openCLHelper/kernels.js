@@ -1,4 +1,4 @@
-var cl = require("./../../node-opencl-master/lib/opencl");
+var cl = require("./../../../node-opencl-master/lib/opencl");
 var { ctx, device } = require("./index");
 var path = require("path");
 var fs = require("fs");

@@ -1,4 +1,4 @@
-var cl = require("./../../node-opencl-master/lib/opencl");
+var cl = require("./../../../node-opencl-master/lib/opencl");
 var { ctx, device, importCL } = require("./../openCLHelper");
 var { FLOATSIZE, INTSIZE } = require("./../openCLHelper/variables");
 var { Memory } = require("./memory");

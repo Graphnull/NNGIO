@@ -1,4 +1,4 @@
-var cl = require("./../../node-opencl-master/lib/opencl");
+var cl = require("./../../../node-opencl-master/lib/opencl");
 
 var ctx;
 

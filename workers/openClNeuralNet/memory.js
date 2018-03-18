@@ -1,4 +1,4 @@
-var cl = require("./../../node-opencl-master/lib/opencl");
+var cl = require("./../../../node-opencl-master/lib/opencl");
 var { ctx, device } = require("./../openCLHelper");
 var { FLOATSIZE, INTSIZE } = require("./../openCLHelper/variables");
 const uuidv1 = require("uuid/v1");
@@ -121,8 +121,8 @@ module.exports.Memory = class Memory {
     }
   }
   clearActivate() {
-    console.log(this.cq, this.activateMap, null, FLOATSIZE, 0, this.width * this.height);
-    //cl.enqueueFillBuffer(this.cq, this.activateMap, null, FLOATSIZE, 0, this.width * this.height);
+    //TODO
+    //cl.enqueueFillBuffer(this.cq, this.activateMap, 0, FLOATSIZE, 0, FLOATSIZE * this.width * this.height);
   }
   getActivate() {
     var output = Buffer(FLOATSIZE * this.width * this.height);

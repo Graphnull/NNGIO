@@ -1,9 +1,9 @@
-var cl = require("./../node-opencl-master/lib/opencl"); //TODO
+var cl = require("./../../node-opencl-master/lib/opencl"); //TODO
 var { ctx, device } = require("./openCLHelper");
 var { Memory } = require("./openClNeuralNet/memory");
 var { FCLayer } = require("./openClNeuralNet/fclayer");
 var { loadingKernels, getKernel } = require("./openCLHelper/kernels");
-var { DataSet } = require("./db");
+var { DataSet } = require("./../db");
 var sharp = require("sharp");
 loadingKernels(device);
 
@@ -16,13 +16,12 @@ if (cl.createCommandQueueWithProperties !== undefined) {
 
 var input = new Memory(cq, 28, 28);
 var output0 = new FCLayer(cq, 28, 28);
-var output1 = new FCLayer(cq, 28, 28);
-var output2 = new FCLayer(cq, 28, 28);
-var output3 = new FCLayer(cq, 128, 128);
+var output1 = new FCLayer(cq, 128, 128);
+var output2 = new FCLayer(cq, 128, 128);
+
 output0.bind(input);
 output1.bind(output0);
 output2.bind(output1);
-output3.bind(output2);
 
 var start = Date.now();
 
@@ -68,8 +67,6 @@ function neuralLearning(buffers) {
     output1.RELUactivate();
     output2.multiple(output1);
     output2.RELUactivate();
-    output3.multiple(output2);
-    output3.RELUactivate();
   });
 
   console.log("complete", (Date.now() - start) / 1000, "second");
