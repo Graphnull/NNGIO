@@ -4,10 +4,21 @@ __kernel void kernel multiple(  __global float* bufferIn,  __global float* buffe
 
 
 //substract for float
+/*
 float out=bufferOut[idx];
 for(size_t x=0;x!=(layerInfo[0]); x++){
         
         out+=distance(bufferIn[x],bufferW[idx*layerInfo[0]+x]);
+
+}
+bufferOut[idx]=out;
+*/
+//multiple for float
+
+float out=0.0;
+for(size_t x=0;x!=(layerInfo[0]); x++){
+        
+        out+=bufferIn[x]*bufferW[idx*layerInfo[0]+x];
 
 }
 bufferOut[idx]=out;

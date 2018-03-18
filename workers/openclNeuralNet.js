@@ -23,6 +23,8 @@ var output1 = new FCLayer(cq, 64, 64);
 output0.bind(input);
 output1.bind(output0);
 
+output0.setRandomWeight(input);
+output1.setRandomWeight(output0);
 var start = Date.now();
 
 DataSet.findOne({ name: "mnist" })

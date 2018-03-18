@@ -72,6 +72,15 @@ module.exports.FCLayer = class FCLayer extends Memory {
     }
   }
 
+  setRandomWeight(layer) {
+    var layerWeight = this.connect[layer.id];
+    var temp = new Buffer(layerWeight.height * layerWeight.width * FLOATSIZE);
+    for (var i = 0; i !== layerWeight.height * layerWeight.width; i++) {
+      temp.writeFloatLE(Math.random() - 0.5, i * FLOATSIZE);
+    }
+
+    cl.enqueueWriteBuffer(this.cq, layerWeight.buffer, true, 0, FLOATSIZE * layerWeight.height * layerWeight.width, temp);
+  }
   multiple(layer) {
     var err;
     try {
