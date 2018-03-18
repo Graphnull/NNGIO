@@ -6,7 +6,7 @@ var { stringifyError } = require("./helper");
 var { createNew, loadNets, changeOptions, infTrain } = require("./neuralNet");
 var mongoose = require("mongoose");
 var dataset = require("./dataset");
-
+var openclNeuralNet = require("./workers/openclNeuralNet");
 setInterval(() => {
   Object.keys(nets).forEach(net => {
     NeuralNet.findOne({ name: net })

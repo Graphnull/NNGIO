@@ -74,36 +74,28 @@ module.exports.FCLayer = class FCLayer extends Memory {
 
   multiple(layer) {
     var err;
-    var KernelMultiple = getKernel("multiple");
-    err = cl.setKernelArg(KernelMultiple, 0, "float*", layer.activateMap);
-    if (err) {
-      console.log("", err);
-    }
-    err = cl.setKernelArg(KernelMultiple, 1, "float*", this.activateMap);
-    if (err) {
-      console.log("", err);
-    }
-    err = cl.setKernelArg(KernelMultiple, 2, "float*", this.connect[layer.id].buffer);
-    if (err) {
-      console.log("", err);
-    }
-    var param = new Buffer(INTSIZE);
-    param.writeUInt32LE(layer.width * layer.height, 0);
-    err = cl.setKernelArg(KernelMultiple, 3, "int*", cl.createBuffer(ctx, cl.MEM_READ_ONLY | cl.MEM_COPY_HOST_PTR, INTSIZE * 1, param));
-    if (err) {
-      console.log("", err);
-    }
-    err = cl.finish(this.cq);
-    if (err) {
-      console.log(err);
-    }
-    err = cl.enqueueNDRangeKernel(this.cq, KernelMultiple, 1, [0], [this.width * this.height], null);
-    if (err) {
-      console.log(t);
-    }
-    err = cl.finish(this.cq);
-    if (err) {
-      console.log(t);
+    try {
+      var KernelMultiple = getKernel("multiple");
+      cl.setKernelArg(KernelMultiple, 0, "float*", layer.activateMap);
+
+      cl.setKernelArg(KernelMultiple, 1, "float*", this.activateMap);
+
+      cl.setKernelArg(KernelMultiple, 2, "float*", this.connect[layer.id].buffer);
+
+      var param = new Buffer(INTSIZE);
+      param.writeUInt32LE(layer.width * layer.height, 0);
+      cl.setKernelArg(KernelMultiple, 3, "int*", cl.createBuffer(ctx, cl.MEM_READ_ONLY | cl.MEM_COPY_HOST_PTR, INTSIZE * 1, param));
+
+      err = cl.finish(this.cq);
+      if (err) {
+        console.log(err);
+      }
+
+      cl.enqueueNDRangeKernel(this.cq, KernelMultiple, 1, [0], [this.width * this.height], null);
+
+      cl.finish(this.cq);
+    } catch (e) {
+      console.log(e, this.width, this.height);
     }
   }
 };

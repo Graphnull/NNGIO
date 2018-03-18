@@ -5,8 +5,10 @@ var { FCLayer } = require("./openClNeuralNet/fclayer");
 var { loadingKernels, getKernel } = require("./openCLHelper/kernels");
 var { DataSet } = require("./../db");
 var sharp = require("sharp");
-loadingKernels(device);
+var { io } = require("./../socket");
 
+loadingKernels(device);
+var socket;
 var cq;
 if (cl.createCommandQueueWithProperties !== undefined) {
   cq = cl.createCommandQueueWithProperties(ctx, device, []); // OpenCL 2
@@ -16,12 +18,10 @@ if (cl.createCommandQueueWithProperties !== undefined) {
 
 var input = new Memory(cq, 28, 28);
 var output0 = new FCLayer(cq, 28, 28);
-var output1 = new FCLayer(cq, 128, 128);
-var output2 = new FCLayer(cq, 128, 128);
+var output1 = new FCLayer(cq, 64, 64);
 
 output0.bind(input);
 output1.bind(output0);
-output2.bind(output1);
 
 var start = Date.now();
 
@@ -47,7 +47,10 @@ function prepareImages(dataset) {
     .then(images => {
       console.log("image convert complete", (Date.now() - start) / 1000, "second");
 
-      neuralLearning(images);
+      io.on("connection", function(s) {
+        socket = s;
+        neuralLearning(images);
+      });
     })
     .catch(err => {
       console.log(err);
@@ -58,6 +61,7 @@ function neuralLearning(buffers) {
   buffers.forEach((image, index) => {
     if (index % 100 === 0) {
       console.log(index);
+      socket.emit("monitor", output1.getActivate());
     }
 
     input.setActivate(image);
@@ -65,8 +69,6 @@ function neuralLearning(buffers) {
     output0.RELUactivate();
     output1.multiple(output0);
     output1.RELUactivate();
-    output2.multiple(output1);
-    output2.RELUactivate();
   });
 
   console.log("complete", (Date.now() - start) / 1000, "second");
