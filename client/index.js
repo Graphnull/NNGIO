@@ -6,6 +6,7 @@ import socket from "./socket";
 
 import MenuN from "./menu";
 import Spin from "./spiner";
+import ShowMap from "./tools/showMap";
 import moment from "moment";
 import "moment/locale/ru";
 import img from "./grid.png";
@@ -35,36 +36,16 @@ class App extends Component {
   };
   componentDidMount() {
     this.update();
-    var ctx = this.refs.canvas.getContext("2d");
+
     socket.on("connect", () => {
       this.update();
-    });
-
-    socket.on("monitor", data => {
-      //console.log(data);
-      var Fldata = new Float32Array(data);
-      var int8 = ctx.createImageData(64, 64);
-
-      for (var x = 0; x !== int8.width; x++) {
-        for (var y = 0; y !== int8.height; y++) {
-          int8.data[(x + y * int8.width) * 4] = Fldata[x + y * int8.width] / 943652261888;
-          if (Fldata[x + y * int8.width] / 943652261888 > 255) {
-            int8.data[(x + y * int8.width) * 4] = Fldata[x + y * int8.width] / (943652261888 * 100);
-          } else {
-            int8.data[(x + y * int8.width) * 4] = Fldata[x + y * int8.width] / (943652261888 / 255);
-          }
-          int8.data[(x + y * int8.width) * 4 + 3] = 255;
-        }
-      }
-
-      ctx.putImageData(int8, 0, 0);
     });
   }
 
   render() {
     return (
       <div>
-        <canvas ref="canvas" width="64" height="64" />
+        <ShowMap mapWidth={64} mapHeight={64} />
         <div
           style={{
             width: "100%",
