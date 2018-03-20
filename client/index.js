@@ -45,7 +45,9 @@ class App extends Component {
   render() {
     return (
       <div>
-        <ShowMap mapWidth={64} mapHeight={64} />
+        <ShowMap mapWidth={28} mapHeight={28} id="input" />
+        <ShowMap mapWidth={28} mapHeight={28} id="output0" />
+        <ShowMap mapWidth={64} mapHeight={64} id="output1" />
         <div
           style={{
             width: "100%",

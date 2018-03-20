@@ -1,4 +1,4 @@
-__kernel void kernel multiple(  __global float* bufferIn,  __global float* bufferOut , __global float* bufferW, __constant int* layerInfo){
+__kernel void kernel multiple(  __global float* bufferIn,  __global float* bufferOut , __global float* bufferW, __global int* layerInfo){
  
  int idx = get_global_id(0);
 

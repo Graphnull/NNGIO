@@ -6,7 +6,7 @@ var { loadingKernels, getKernel } = require("./openCLHelper/kernels");
 var { DataSet } = require("./../db");
 var sharp = require("sharp");
 var { io } = require("./../socket");
-
+var end = true;
 loadingKernels(device);
 var socket;
 var cq;
@@ -18,13 +18,13 @@ if (cl.createCommandQueueWithProperties !== undefined) {
 
 var input = new Memory(cq, 28, 28);
 var output0 = new FCLayer(cq, 28, 28);
-var output1 = new FCLayer(cq, 64, 64);
+//var output1 = new FCLayer(cq, 28, 28);
 
 output0.bind(input);
-output1.bind(output0);
+//output1.bind(output0);
 
 output0.setRandomWeight(input);
-output1.setRandomWeight(output0);
+//output1.setRandomWeight(output0);
 var start = Date.now();
 
 DataSet.findOne({ name: "mnist" })
@@ -51,7 +51,10 @@ function prepareImages(dataset) {
 
       io.on("connection", function(s) {
         socket = s;
-        neuralLearning(images);
+        if (end) {
+          end = false;
+          neuralLearning(images);
+        }
       });
     })
     .catch(err => {
@@ -60,20 +63,42 @@ function prepareImages(dataset) {
 }
 function neuralLearning(buffers) {
   var start = Date.now();
-  buffers.forEach((image, index) => {
-    if (index % 100 === 0) {
-      console.log(index);
-      socket.emit("monitor", output1.getActivate());
-    }
 
-    input.setActivate(image);
+  var i = 0;
+  function tick() {
+    output0.clearActivate();
+    input.setActivate(buffers[i]);
     output0.multiple(input);
     output0.RELUactivate();
-    output1.multiple(output0);
-    output1.RELUactivate();
-  });
+    output0.getErrorFromCompare(input);
+    output0.mutateWeight(input);
+    output0.clearActivate();
+    output0.multiple(input);
+    output0.RELUactivate();
+    output0.checkMutateWeight(input, input);
+    //output1.multiple(output0);
+    //output1.RELUactivate();
 
-  console.log("complete", (Date.now() - start) / 1000, "second");
+    //output1.getErrorFromCompare(input);
+    i++;
+    if (i === 1800) {
+      console.log("complete", (Date.now() - start) / 1000, "second");
+      end = true;
+      return null;
+    }
+    if (i % 100 === 0) {
+      console.log(i);
+      socket.emit("monitor", { id: "input" }, input.getActivate());
+      socket.emit("monitor", { id: "output0" }, output0.getActivate());
+      //socket.emit("monitor", { id: "output1" }, output1.getActivate());
+      setTimeout(() => {
+        tick();
+      }, 10);
+    } else {
+      tick();
+    }
+  }
+  tick();
 }
 process.on("data", data => {
   console.log(data);

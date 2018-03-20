@@ -1,4 +1,4 @@
-__kernel void kernel applyvector( __global float* bufferTemp,__global float* bufferW,  __global int* layerInfo){
+__kernel void kernel mutateWeight( __global float* bufferTemp,__global float* bufferW,  __global int* layerInfo){
 
 //size_t bufferWidth=layerInfo[6];
 //if( bufferA[get_global_id(0)]<0.0){

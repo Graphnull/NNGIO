@@ -1,4 +1,4 @@
-__kernel void kernel getvector( __global float* bufferIn,__global float* bufferOut, __global float* bufferError,__global float* bufferTemp,__global float* bufferW,  __global int* layerInfo){
+__kernel void kernel checkMutateWeight( __global float* bufferIn,__global float* bufferOut, __global float* bufferError,__global float* bufferTemp,__global float* bufferW,  __global int* layerInfo){
 
 
  float err=fabs(bufferIn[get_global_id(0)]-bufferOut[get_global_id(0)])*fabs(bufferIn[get_global_id(0)]-bufferOut[get_global_id(0)]);

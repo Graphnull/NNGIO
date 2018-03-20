@@ -3,13 +3,16 @@ import { Slider } from "antd";
 
 export default class ShowMap extends Component {
   state = {
-    multiple: 0.1,
+    multiple: 1.0,
     center: 0.0
   };
   componentDidMount() {
-    socket.on("monitor", data => {
+    socket.on("monitor", (options, data) => {
       //console.log(data);
-      this.floatData = new Float32Array(data);
+      if (options.id === this.props.id) {
+        this.floatData = new Float32Array(data);
+        this.forceUpdate();
+      }
     });
   }
 
@@ -20,7 +23,7 @@ export default class ShowMap extends Component {
 
       for (var x = 0; x !== int8.width; x++) {
         for (var y = 0; y !== int8.height; y++) {
-          int8.data[(x + y * int8.width) * 4] = (this.floatData[x + y * int8.width] + this.state.center) * this.state.multiple;
+          int8.data[(x + y * int8.width) * 4] = (this.floatData[x + y * int8.width] + this.state.center) * this.state.multiple * 256.0;
           int8.data[(x + y * int8.width) * 4 + 1] = int8.data[(x + y * int8.width) * 4];
           int8.data[(x + y * int8.width) * 4 + 2] = int8.data[(x + y * int8.width) * 4];
           int8.data[(x + y * int8.width) * 4 + 3] = 255;
@@ -34,10 +37,12 @@ export default class ShowMap extends Component {
       <div>
         <canvas ref="canvas" width={this.props.mapWidth} height={this.props.mapHeight} />
         <h4>
-          Центр:
+          Смещение:
           <Slider
             value={this.state.center}
-            step={0.1}
+            step={0.01}
+            max={10}
+            defaultValue={0.0}
             onChange={e => {
               this.setState({ center: e });
             }}
@@ -45,7 +50,9 @@ export default class ShowMap extends Component {
           Яркость:
           <Slider
             value={this.state.multiple}
-            step={0.1}
+            step={0.01}
+            defaultValue={1.0}
+            max={10}
             onChange={e => {
               this.setState({ multiple: e });
             }}

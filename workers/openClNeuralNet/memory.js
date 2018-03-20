@@ -33,10 +33,10 @@ module.exports.Memory = class Memory {
         layerinfo[3] = 0;
         consts.writeUInt32LE(layerinfo[3], 3 * INTSIZE);
 
-        cl.enqueueWriteBuffer(this.cq, buffer_layerInfo, true, 0, INTSIZE * 5, consts);
+        var event = cl.enqueueWriteBuffer(this.cq, buffer_layerInfo, true, 0, INTSIZE * 5, consts, null, true);
 
-        cl.enqueueNDRangeKernel(this.cq, kernel_wavelet, 2, [0, 0], [this.width / layerinfo[0], this.height / layerinfo[2]], null);
-
+        var kernelEvent = cl.enqueueNDRangeKernel(this.cq, kernel_wavelet, 2, [0, 0], [this.width / layerinfo[0], this.height / layerinfo[2]], null, [event], true);
+        cl.waitForEvents([kernelEvent]);
         cl.finish(this.cq);
         layerinfo[2] = layerinfo[2] * 2;
         consts.writeUInt32LE(layerinfo[2], 2 * INTSIZE);
@@ -45,8 +45,9 @@ module.exports.Memory = class Memory {
         layerinfo[3] = layerinfo[2] / 2;
         consts.writeUInt32LE(layerinfo[3], 3 * INTSIZE);
 
-        cl.enqueueWriteBuffer(this.cq, buffer_layerInfo, true, 0, INTSIZE * 5, consts);
-        cl.enqueueNDRangeKernel(this.cq, kernel_wavelet, 2, [0, 0], [this.width / layerinfo[0], this.height / layerinfo[2]], null);
+        var event = cl.enqueueWriteBuffer(this.cq, buffer_layerInfo, true, 0, INTSIZE * 5, consts, null, true);
+        var kernelEvent = cl.enqueueNDRangeKernel(this.cq, kernel_wavelet, 2, [0, 0], [this.width / layerinfo[0], this.height / layerinfo[2]], null, [event], true);
+        cl.waitForEvents([kernelEvent]);
         cl.finish(this.cq);
       }
       this.wavelet = true;
@@ -69,8 +70,9 @@ module.exports.Memory = class Memory {
         layerinfo[3] = layerinfo[2] / 2;
         consts.writeUInt32LE(layerinfo[3], 3 * INTSIZE);
 
-        cl.enqueueWriteBuffer(this.cq, buffer_layerInfo, true, 0, INTSIZE * 5, consts);
-        cl.enqueueNDRangeKernel(this.cq, kernel_unwavelet, 2, [0, 0], [this.width / layerinfo[0], this.height / layerinfo[2]], null);
+        var event = cl.enqueueWriteBuffer(this.cq, buffer_layerInfo, true, 0, INTSIZE * 5, consts, null, true);
+        var kernelEvent = cl.enqueueNDRangeKernel(this.cq, kernel_unwavelet, 2, [0, 0], [this.width / layerinfo[0], this.height / layerinfo[2]], null, [event], true);
+        cl.waitForEvents([kernelEvent]);
         cl.finish(this.cq);
 
         layerinfo[2] = layerinfo[2] / 2;
@@ -80,8 +82,9 @@ module.exports.Memory = class Memory {
         layerinfo[3] = 0;
         consts.writeUInt32LE(layerinfo[3], 3 * INTSIZE);
 
-        cl.enqueueWriteBuffer(this.cq, buffer_layerInfo, true, 0, INTSIZE * 5, consts);
-        cl.enqueueNDRangeKernel(this.cq, kernel_unwavelet, 2, [0, 0], [this.width / layerinfo[0], this.height / layerinfo[2]], null);
+        var event = cl.enqueueWriteBuffer(this.cq, buffer_layerInfo, true, 0, INTSIZE * 5, consts, null, true);
+        var kernelEvent = cl.enqueueNDRangeKernel(this.cq, kernel_unwavelet, 2, [0, 0], [this.width / layerinfo[0], this.height / layerinfo[2]], null, [event], true);
+        cl.waitForEvents([kernelEvent]);
         cl.finish(this.cq);
         layerinfo[0] = layerinfo[0] / 2;
         consts.writeUInt32LE(layerinfo[0], 0 * INTSIZE);
@@ -93,28 +96,22 @@ module.exports.Memory = class Memory {
   setActivate(buffer) {
     var err;
 
-    var input = cl.createBuffer(ctx, cl.MEM_READ_ONLY | cl.MEM_COPY_HOST_PTR, 1 * this.width * this.height, buffer);
+    var input = cl.createBuffer(ctx, cl.MEM_READ_WRITE, 1 * this.width * this.height, null);
     err = cl.finish(this.cq);
     if (err) {
       console.log("", err);
     }
     var convertToFloat = getKernel("convertToFloat");
-    err = cl.setKernelArg(convertToFloat, 0, "float*", this.activateMap);
-    if (err) {
-      console.log("", err);
-    }
-    err = cl.setKernelArg(convertToFloat, 1, "unsigned char*", input);
-    if (err) {
-      console.log("", err);
-    }
-    err = cl.finish(this.cq);
-    if (err) {
-      console.log(err);
-    }
-    err = cl.enqueueNDRangeKernel(this.cq, convertToFloat, 1, [0], [this.width * this.height], null);
-    if (err) {
-      console.log(err);
-    }
+    var t1 = cl.setKernelArg(convertToFloat, 0, "float*", this.activateMap);
+
+    var t2 = cl.setKernelArg(convertToFloat, 1, "unsigned char*", input);
+
+    var t3 = cl.finish(this.cq);
+    console.log(t1, t2, t3);
+    var event = cl.enqueueWriteBuffer(this.cq, input, true, 0, 1 * this.width * this.height, buffer, null, true);
+    var kernelEvent = cl.enqueueNDRangeKernel(this.cq, convertToFloat, 1, [0], [this.width * this.height], null, [event], true);
+
+    cl.waitForEvents([kernelEvent]);
     err = cl.finish(this.cq);
     if (err) {
       console.log("", err);
