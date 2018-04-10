@@ -84,6 +84,7 @@ function neuralLearning(buffers) {
     if (i === 1800) {
       console.log("complete", (Date.now() - start) / 1000, "second");
       end = true;
+      neuralLearning(buffers);
       return null;
     }
     if (i % 100 === 0) {

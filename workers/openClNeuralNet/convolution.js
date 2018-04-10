@@ -19,48 +19,36 @@ class Weight {
   load() {}
 }
 
-module.exports.FCLayer = class FCLayer extends Memory {
+module.exports.Conv = class Conv extends Memory {
   constructor(...params) {
     super(...params);
     this.connect = {};
-    this.errorMap = cl.createBuffer(ctx, cl.MEM_READ_WRITE, FLOATSIZE * this.width * this.height, null);
+    this.width = params.width;
+
+    this.errorMap = cl.createBuffer(ctx, cl.MEM_READ_WRITE, FLOATSIZE * this.width * this.height * this.width, null);
+
     this.clearError();
-    this.fclayerCompile();
   }
-
-  fclayerCompile() {
-    //generate code
-
-    //activate
-    var code = `__kernel void kernel ${"activate" + this.id}( __global int16* bufferA){
-    bufferA[get_global_id(0)]=bufferA[get_global_id(0)]&0x7FFFFFFF;
-    };`;
-    var prog = cl.createProgramWithSource(ctx, code);
-    try {
-      var state = cl.buildProgram(prog);
-      if (state) {
-        new Error(state);
-      }
-    } catch (err) {
-      console.error("error", cl.getProgramBuildInfo(prog, device, cl.PROGRAM_BUILD_LOG));
-    }
-    this.activateKernel = cl.createKernel(prog, "activate" + this.id);
-    cl.setKernelArg(this.activateKernel, 0, "int16*", this.activateMap);
-  }
-
   clearError() {
     cl.enqueueFillBuffer(this.cq, this.errorMap, FLOATSIZE, 0, 0, new Uint32Array([FLOATSIZE * this.width * this.height], 0, 1));
   }
-
   RELUactivate(cq, kern, NVALUES) {
+    //long int start_s=GetTickCount();//test
     var err;
-    err = cl.enqueueNDRangeKernel(this.cq, this.activateKernel, 1, [0], [this.width * this.height / 16], null);
+
+    var RELUactivate = getKernel("RELUActivate");
+    cl.setKernelArg(RELUactivate, 0, "int16*", this.activateMap);
+
+    cl.finish(this.cq);
+
+    err = cl.enqueueNDRangeKernel(this.cq, RELUactivate, 1, [0], [this.width * this.height / 16], null);
     if (err) {
       console.log(err);
     }
     cl.finish(this.cq);
-  }
 
+    //printf("activate %i \n",GetTickCount()-start_s);
+  }
   softMaxActivate() {
     /*
     //long int start_s=GetTickCount();//test
@@ -71,7 +59,6 @@ module.exports.FCLayer = class FCLayer extends Memory {
 */
     //printf("activate %i \n",GetTickCount()-start_s);
   }
-
   getErrorFromCompare(layer) {
     if (layer.width != this.width || layer.height != this.height) {
       throw Error("layer.width != this.width || layer.height != this.height");
@@ -101,7 +88,7 @@ module.exports.FCLayer = class FCLayer extends Memory {
     var t1 = cl.setKernelArg(KernelMutateWeight, 0, "float*", this.connect[layer.id].bufferTemp);
     var t2 = cl.setKernelArg(KernelMutateWeight, 1, "float*", this.connect[layer.id].buffer);
     var t3 = cl.setKernelArg(KernelMutateWeight, 2, "int*", buffer_layerInfo);
-
+    console.log(t1, t2, t3);
     var event = cl.enqueueWriteBuffer(this.cq, buffer_layerInfo, true, 0, INTSIZE * 3, param, null, true);
     var kernelEvent = cl.enqueueNDRangeKernel(this.cq, KernelMutateWeight, new Uint32Array([1]), [0], [this.width * this.height], null, [event], true);
     cl.waitForEvents([kernelEvent]);
@@ -137,57 +124,6 @@ module.exports.FCLayer = class FCLayer extends Memory {
       weight.buffer = cl.createBuffer(ctx, cl.MEM_READ_WRITE, FLOATSIZE * weight.width * weight.height, null);
       weight.bufferTemp = cl.createBuffer(ctx, cl.MEM_READ_WRITE, FLOATSIZE * weight.width * weight.height, null);
       cl.enqueueFillBuffer(this.cq, weight.buffer, FLOATSIZE, 0, weight.width * weight.height, null, null);
-
-      //multiple compile
-      var codeMultiple = `__kernel void kernel ${"multiple" + this.id}(  __global float* bufferIn,  __global float* bufferOut , __global float* bufferW){
-      
-  float out=0.0;
-  for(size_t x=0;x!=(${layer.width * layer.height}); x++){
-          
-          out+=bufferIn[x]*bufferW[get_global_id(0)*${layer.width * layer.height}+x];
-  
-  }
-  bufferOut[get_global_id(0)]=out;
-  
-  };`;
-      var progMultiple = cl.createProgramWithSource(ctx, codeMultiple);
-      try {
-        var state = cl.buildProgram(progMultiple);
-        if (state) {
-          new Error(state);
-        }
-      } catch (err) {
-        console.error("error", cl.getProgramBuildInfo(progMultiple, device, cl.PROGRAM_BUILD_LOG));
-      }
-      this["multilpeKernel" + layer.id] = cl.createKernel(progMultiple, "multiple" + this.id);
-
-      var buffer = cl.createBuffer(ctx, cl.MEM_READ_WRITE, INTSIZE * 1, null);
-      var t1 = cl.setKernelArg(this["multilpeKernel" + layer.id], 0, "float*", layer.activateMap);
-      var t2 = cl.setKernelArg(this["multilpeKernel" + layer.id], 1, "float*", this.activateMap);
-      var t3 = cl.setKernelArg(this["multilpeKernel" + layer.id], 2, "float*", weight.buffer);
-
-      //getErrorFromCompare
-      var code = `__kernel void kernel ${"getError" + this.id}( __global float16* bufferIn, __global float16* bufferOut, __global float16* bufferError){
-
-  bufferError[get_global_id(0)]=fabs(bufferIn[get_global_id(0)]-bufferOut[get_global_id(0)])*fabs(bufferIn[get_global_id(0)]-bufferOut[get_global_id(0)]);
-  
-  };`;
-      var prog = cl.createProgramWithSource(ctx, code);
-      try {
-        var state = cl.buildProgram(prog);
-        if (state) {
-          new Error(state);
-        }
-      } catch (err) {
-        console.error("error", cl.getProgramBuildInfo(prog, device, cl.PROGRAM_BUILD_LOG));
-      }
-      this[Kernel] = cl.createKernel(prog, "getError" + this.id);
-      cl.setKernelArg(KernelGetError, 0, "float16*", this.activateMap);
-
-      cl.setKernelArg(KernelGetError, 1, "float16*", layer.activateMap);
-
-      cl.setKernelArg(KernelGetError, 2, "float16*", this.errorMap);
-
       this.connect[layer.id] = weight;
     }
   }
@@ -203,14 +139,28 @@ module.exports.FCLayer = class FCLayer extends Memory {
     cl.finish(this.cq);
   }
   multiple(layer) {
-    var err = cl.enqueueNDRangeKernel(this.cq, this["multilpeKernel" + layer.id], 1, [0], [this.width * this.height], null);
-    if (err) {
-      console.log(err);
-    }
+    var err;
+
+    var KernelMultiple = getKernel("multiple");
+    var buffer = cl.createBuffer(ctx, cl.MEM_READ_WRITE, INTSIZE * 1, null);
+    var t1 = cl.setKernelArg(KernelMultiple, 0, "float*", layer.activateMap);
+
+    var t2 = cl.setKernelArg(KernelMultiple, 1, "float*", this.activateMap);
+
+    var t3 = cl.setKernelArg(KernelMultiple, 2, "float*", this.connect[layer.id].buffer);
+
+    var param = new Buffer(INTSIZE);
+    param.writeUInt32LE(layer.width * layer.height, 0);
+
+    var t4 = cl.setKernelArg(KernelMultiple, 3, "int*", buffer);
+    console.log(t1, t2, t3, t4);
+    var event = cl.enqueueWriteBuffer(this.cq, buffer, true, 0, INTSIZE * 1, param, null, true);
+
+    var kernelEvent = cl.enqueueNDRangeKernel(this.cq, KernelMultiple, 1, [0], [this.width * this.height], null, [event], true);
+    cl.waitForEvents([kernelEvent]);
     cl.finish(this.cq);
   }
 };
-
 function get_event_exec_time(event) {
   // times are 64-bit values in naniseconds. They are returned as [hi,lo] a 2-integer array
   // here we use the lo parts since this example is unlikely to go beyond 2^31 nanseconds per event.

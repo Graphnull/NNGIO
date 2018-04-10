@@ -1,18 +1,43 @@
 var cl = require("./../../../node-opencl-master/lib/opencl");
 var { ctx, device } = require("./../openCLHelper");
 var { FLOATSIZE, INTSIZE } = require("./../openCLHelper/variables");
-const uuidv1 = require("uuid/v1");
+const shortid = require("shortid");
 var { getKernel } = require("./../openCLHelper/kernels");
 
 module.exports.Memory = class Memory {
   constructor(cq, width, height) {
-    this.id = uuidv1();
+    this.id = shortid.generate();
     this.wavelet = false;
     this.width = width;
     this.height = height;
     this.cq = cq;
     this.activateMap = cl.createBuffer(ctx, cl.MEM_READ_WRITE, FLOATSIZE * this.width * this.height, null);
     this.clearActivate();
+    this.memoryCompile();
+  }
+  memoryCompile() {
+    //generate code
+
+    this.input = cl.createBuffer(ctx, cl.MEM_READ_WRITE, 1 * this.width * this.height, null);
+
+    //activate
+    var code = `__kernel void kernel ${"input" + this.id}(__global float* activateMap, __global unsigned char* input){
+			activateMap[get_global_id(0)] = input[get_global_id(0)]/256.0;
+      };`;
+    var prog = cl.createProgramWithSource(ctx, code);
+    try {
+      var state = cl.buildProgram(prog);
+      if (state) {
+        new Error(state);
+      }
+    } catch (err) {
+      console.error("error", cl.getProgramBuildInfo(prog, device, cl.PROGRAM_BUILD_LOG));
+    }
+
+    this.inputKernel = cl.createKernel(prog, "input" + this.id);
+    var t1 = cl.setKernelArg(this.inputKernel, 0, "float*", this.activateMap);
+
+    var t2 = cl.setKernelArg(this.inputKernel, 1, "unsigned char*", this.input);
   }
   wavelet() {
     //Вельвет преобразование на изображение
@@ -94,24 +119,11 @@ module.exports.Memory = class Memory {
   }
 
   setActivate(buffer) {
-    var err;
-
-    var input = cl.createBuffer(ctx, cl.MEM_READ_WRITE, 1 * this.width * this.height, null);
-    err = cl.finish(this.cq);
-    if (err) {
-      console.log("", err);
-    }
-    var convertToFloat = getKernel("convertToFloat");
-    var t1 = cl.setKernelArg(convertToFloat, 0, "float*", this.activateMap);
-
-    var t2 = cl.setKernelArg(convertToFloat, 1, "unsigned char*", input);
-
-    var t3 = cl.finish(this.cq);
-    console.log(t1, t2, t3);
-    var event = cl.enqueueWriteBuffer(this.cq, input, true, 0, 1 * this.width * this.height, buffer, null, true);
-    var kernelEvent = cl.enqueueNDRangeKernel(this.cq, convertToFloat, 1, [0], [this.width * this.height], null, [event], true);
+    var event = cl.enqueueWriteBuffer(this.cq, this.input, true, 0, 1 * this.width * this.height, buffer, null, true);
+    var kernelEvent = cl.enqueueNDRangeKernel(this.cq, this.inputKernel, 1, [0], [this.width * this.height], null, [event], true);
 
     cl.waitForEvents([kernelEvent]);
+    var err;
     err = cl.finish(this.cq);
     if (err) {
       console.log("", err);
