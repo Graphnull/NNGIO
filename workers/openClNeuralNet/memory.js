@@ -4,6 +4,7 @@ var { FLOATSIZE, INTSIZE } = require("./../openCLHelper/variables");
 const shortid = require("shortid");
 var { getKernel } = require("./../openCLHelper/kernels");
 
+shortid.characters("ÇüéâäàåçêëèïîbcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ");
 module.exports.Memory = class Memory {
   constructor(cq, width, height) {
     this.id = shortid.generate();
