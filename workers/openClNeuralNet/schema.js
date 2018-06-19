@@ -10,9 +10,156 @@ if (cl.createCommandQueueWithProperties !== undefined) {
 } else {
   cq = cl.createCommandQueue(ctx, device, null); // OpenCL 1.x
 }
+var example = {
+  a: {
+    type: "input",
+    width: 28,
+    height: 28,
+  },
+  a2: {
+    type: "input",
+    width: 28,
+    height: 28,
+  },
+  b: {
+    type: "fclayer",
+    width: 28,
+    height: 28,
+    from: ["a","a2"]
+  },
+  c: {
+    type: "fclayer",
+    width: 28,
+    height: 28,
+    from: ["b"],
+    error: {
+      a: {
+        type: "compare",
+        from: "a"
+      }
+    }
+  },
+  c1: {
+    type: "fclayer",
+    width: 28,
+    height: 28,
+    from: ["c"],
+    error: {
+      a: {
+        type: "compare",
+        from: "a"
+      }
+    }
+  },
+  c2: {
+    type: "fclayer",
+    width: 28,
+    height: 28,
+    from: ["c1"],
+    error: {
+      a: {
+        type: "compare",
+        from: "a"
+      }
+    }
+  },
+  c3: {
+    type: "fclayer",
+    width: 28,
+    height: 28,
+    from: ["c2"],
+    error: {
+      a: {
+        type: "compare",
+        from: "a"
+      }
+    }
+  },
+  c4: {
+    type: "fclayer",
+    width: 28,
+    height: 28,
+    from:["c3"],
+    error: {
+      a: {
+        type: "compare",
+        from: "a"
+      }
+    }
+  }
+};
 
-module.exports.convertSchema = function convertSchema(schema) {
+function convertSchema(s) {
+  let schema = _.cloneDeep(s);
+
+  function checkTree(inp, branch, b) {
+    let keys = Object.keys(branch);
+
+    for (let i = 0; i !== keys.length; i++) {
+      if (keys[i] === inp) {
+        b.id = keys[i];
+        b.check = true;
+        break;
+      } else {
+        checkTree(inp, branch[keys[i]], b);
+      }
+    }
+  }
+  function addToTree(branch, id, tree) {
+    if (schema[id].from) {
+      schema[id].to.forEach(b => {
+        let bc = { check: false };
+        checkTree(id, tree, bc);
+
+        if (bc.check) {
+          throw new Error("Найдена циркуляция " + id);
+        } else {
+        }
+      });
+    }
+
+    branch[id] = {};
+
+    if (schema[id].to) {
+      schema[id].to.forEach(b => {
+        addToTree(branch[id], b, tree);
+      });
+    }
+  }
+  function viz(branch) {
+    Object.keys(branch).forEach((b, i, arr) => {
+      process.stdout.write(" " + b);
+      if (arr.length - 1 === i) {
+        process.stdout.write("\n");
+      }
+      viz(branch[b]);
+    });
+  }
+
+  var trees=[]
+  Object.keys(schema)
+    .filter(i => schema[i].type === "input")
+    .forEach(i => {
+      const tree = {};
+      addToTree(tree, i, tree);
+      trees.push(tree)
+    });
+
+    //слияние деревьев
+    var maintree={}
+    function concat(tree,main){
+
+
+    }
+    trees.forEach(t=>{
+
+    })
+
+}
+
+function convertSchema2(schema) {
   var time = Date.now();
+
   var layers = {};
   var activate = [];
   var learn = [];
@@ -95,10 +242,12 @@ module.exports.convertSchema = function convertSchema(schema) {
         layersBack.forEach(lbid => {
           layers[id].bind(layers[lbid]);
           layers[id].setRandomWeight(layers[lbid]);
+          console.log(lbid);
         });
         break;
     }
   });
+  console.log(back);
 
   //формируем простую активацию
   while (!checkAllActivate(schema)) {
@@ -107,9 +256,8 @@ module.exports.convertSchema = function convertSchema(schema) {
 
       switch (layer.type) {
         case "input":
-          activate.push(() => {
-            layers[id].setActivate(layer.source);
-          });
+          activate.push(() => layers[id].setActivate(layer.source));
+          activate[activate.length - 1].id = id;
           layer.checkActivate = true;
           break;
         case "memory":
@@ -152,18 +300,14 @@ module.exports.convertSchema = function convertSchema(schema) {
           if (ch) {
             if (layer.checkActivate) {
             } else {
-              activate.push(() => {
-                layers[id].clearActivate();
-              });
-
+              activate.push(() => layers[id].clearActivate());
+              activate[activate.length - 1].id = id;
               back[id].forEach(bid => {
-                activate.push(() => {
-                  layers[id].multiple(layers[bid]);
-                });
+                activate.push(() => layers[id].multiple(layers[bid]));
+                activate[activate.length - 1].id = id;
               });
-              activate.push(() => {
-                layers[id].RELUactivate();
-              });
+              activate.push(() => layers[id].RELUactivate());
+              activate[activate.length - 1].id = id;
               layer.checkActivate = true;
             }
           }
@@ -201,9 +345,18 @@ module.exports.convertSchema = function convertSchema(schema) {
         break;
     }
   });
+  activate.forEach(f => {
+    console.log(f.id, f.toString());
+  });
   console.log("time ms", Date.now() - time);
-  return { activate };
-};
+  return {
+    activate
+  };
+}
+
+convertSchema(example);
+module.exports.convertSchema = convertSchema;
+
 function setFalseActivate(id, obj) {
   obj[id].checkActivate = false;
   if (obj[id].to) {
@@ -212,6 +365,7 @@ function setFalseActivate(id, obj) {
     });
   }
 }
+
 function checkAllActivate(obj) {
   var t = true;
   Object.keys(obj).forEach(id => {
@@ -220,14 +374,7 @@ function checkAllActivate(obj) {
       t = false;
     }
   });
-  var l = true;
-  Object.keys(obj).forEach(id => {
-    if (obj[id].checkLearn) {
-    } else {
-      l = false;
-    }
-  });
-  return t && l;
+  return t;
 }
 
 function checkCircle(el, obj, max) {
