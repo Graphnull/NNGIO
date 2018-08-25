@@ -11,14 +11,16 @@ var Tesseract = t.create({
 });
 
 let channels = 3;
-let width = 1280;
-let height = 720;
+let width = 64;
+let height = 36;
 var max = width * height * channels;
 var ffmpeg = child_process.spawn("ffmpeg", [
   "-i",
-  "rtsp://user:user2121@10.157.182.27:554/Streaming/channels/1/rtpvideo1.sdp",
+  "",
   "-c:v",
   "rawvideo",
+  "-vf",
+  "scale=" + width + "x" + height + ":flags=lanczos",
   "-video_size",
   "" + width + "x" + height,
   "-pix_fmt",
@@ -35,44 +37,49 @@ var ffmpeg = child_process.spawn("ffmpeg", [
 var events = [];
 
 var out = "";
-var buffer = new Buffer(0);
+var buffer = new Buffer(max);
+var buffetlength = 0;
 var debug = true;
 var iter = 0;
 
-ffmpeg.stdout.on("data", data => {
+function onData(data) {
   out = [];
 
-  if (buffer.length < max) {
-    buffer = Buffer.concat([buffer, data]);
+  if (buffetlength < max) {
+    data.copy(buffer, buffetlength, 0, data.length);
+    //buffer = Buffer.concat([buffer, data]);
+    buffetlength = buffetlength + data.length;
   }
 
-  if (buffer.length >= max) {
+  if (buffetlength >= max) {
     var img;
     iter++;
-    if (debug) {
-      if (iter % 30 === 0 || iter === 1) {
-        for (let y = 0; y !== height; y++) {
-          for (let x = 0; x !== width; x++) {
-            out.push(buffer[y * width * channels + x * channels]);
-            out.push(buffer[y * width * channels + x * channels + 1]);
-            out.push(buffer[y * width * channels + x * channels + 2]);
-            out.push(255);
-          }
+    //if (debug) {
+    /*
+    if (iter % 30 === 0 || iter === 1) {
+      for (let y = 0; y !== height; y++) {
+        for (let x = 0; x !== width; x++) {
+          out.push(buffer[y * width * channels + x * channels]);
+          out.push(buffer[y * width * channels + x * channels + 1]);
+          out.push(buffer[y * width * channels + x * channels + 2]);
+          out.push(255);
         }
-        img = jpeg.encode(
-          {
-            data: out,
-            width: width,
-            height: height
-          },
-          50
-        ).data;
-
-        fs.writeFileSync("./out/output" + iter + ".jpg", img);
       }
-    }
+      img = jpeg.encode(
+        {
+          data: out,
+          width: width,
+          height: height
+        },
+        50
+      ).data;
 
-    if (iter % 300 === 0 || iter === 1) {
+      fs.writeFileSync("./out/output" + iter + ".jpg", img);
+    }
+*/
+    //}
+
+    /*if (iter % 300 === 0 || iter === 1) {
       Tesseract.recognize(
         { data: out, width, height },
         {
@@ -87,17 +94,27 @@ ffmpeg.stdout.on("data", data => {
           fs.writeFileSync("./index.html", result.html);
           //console.log("result", Object.keys(result));
         });
-    }
+    }*/
+
     events.forEach(func => {
       func(buffer);
     });
-    if (buffer.length > max) {
-      buffer = buffer.slice(max);
+    if (buffetlength > max) {
+      if (data.length - buffetlength - max < 0) {
+        buffetlength = 0;
+        onData(data.slice(max));
+      } else {
+        data.copy(buffer, 0, data.length - buffetlength - max, data.length > max ? max : data.length);
+        buffetlength = max - buffetlength;
+      }
+      //buffer = buffer.slice(max);
     } else {
-      buffer = new Buffer(0);
+      buffetlength = 0;
+      //buffer = new Buffer(0);
     }
   }
-});
+}
+ffmpeg.stdout.on("data", onData);
 
 module.exports.on = (event, func) => {
   events.push(func);

@@ -1,46 +1,32 @@
-var cl = require("./../../../node-opencl-master/lib/opencl");
-var { ctx, device } = require("./../openCLHelper");
-var { FLOATSIZE, INTSIZE } = require("./../openCLHelper/variables");
+//var cl = require("./../../../node-opencl-master/lib/opencl");
+//var { ctx, device } = require("./../openCLHelper");
+//var { FLOATSIZE, INTSIZE } = require("./../openCLHelper/variables");
+
 const shortid = require("shortid");
-var { getKernel } = require("./../openCLHelper/kernels");
 
 shortid.characters("ÇüéâäàåçêëèïîbcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ");
 module.exports.Memory = class Memory {
-  constructor(cq, width, height) {
+  constructor(context, width, height) {
     this.id = shortid.generate();
     this.waveleted = false;
     this.width = width;
     this.height = height;
-    this.cq = cq;
-    this.activateMap = cl.createBuffer(ctx, cl.MEM_READ_WRITE, FLOATSIZE * this.width * this.height, null);
-    this.clearActivate();
-    this.memoryCompile();
+    this.context = context;
+    this.init = this.memoryinit;
   }
-  memoryCompile() {
-    //generate code
+  memoryinit() {
+    return new Promise(res => {
+      this.context.createBuffer(Float32Array.BYTES_PER_ELEMENT * this.width * this.height, "readwrite").then(buffer => {
+        this.activateMap = buffer;
+        this.clearActivate();
 
-    this.input = cl.createBuffer(ctx, cl.MEM_READ_WRITE, 3 * this.width * this.height, null);
-
-    //activate
-    var code = `__kernel void kernel ${"input" + this.id}(__global float* activateMap, __global unsigned char* input){
-			activateMap[get_global_id(0)] = (input[get_global_id(0)*3]+input[get_global_id(0)*3+1]+input[get_global_id(0)*3+2])/768.0;
-      };`;
-    var prog = cl.createProgramWithSource(ctx, code);
-    try {
-      var state = cl.buildProgram(prog);
-      if (state) {
-        new Error(state);
-      }
-    } catch (err) {
-      console.error("error", cl.getProgramBuildInfo(prog, device, cl.PROGRAM_BUILD_LOG));
-    }
-
-    this.inputKernel = cl.createKernel(prog, "input" + this.id);
-    var t1 = cl.setKernelArg(this.inputKernel, 0, "float*", this.activateMap);
-
-    var t2 = cl.setKernelArg(this.inputKernel, 1, "unsigned char*", this.input);
+        res();
+      });
+    });
   }
+
   wavelet() {
+    /*
     //Вельвет преобразование на изображение
     if (!this.waveleted) {
       var layerinfo = [1, 0, 1, 0, this.width];
@@ -79,9 +65,10 @@ module.exports.Memory = class Memory {
         cl.finish(this.cq);
       }
       this.waveleted = true;
-    }
+    }*/
   }
   unwavelet() {
+    /*
     if (this.waveleted) {
       //вельвет преобразование в изображение
       var layerinfo = [this.width, 0, this.height * 2, 0, this.width];
@@ -118,33 +105,20 @@ module.exports.Memory = class Memory {
         consts.writeUInt32LE(layerinfo[0], 0 * INTSIZE);
       }
       this.waveleted = false;
-    }
+    }*/
   }
 
   setActivate(buffer) {
-    var event = cl.enqueueWriteBuffer(this.cq, this.input, true, 0, 3 * this.width * this.height, buffer, null, true);
-    var kernelEvent = cl.enqueueNDRangeKernel(this.cq, this.inputKernel, 1, [0], [this.width * this.height], null, [event], true);
-
-    cl.waitForEvents([kernelEvent]);
-    var err;
-    err = cl.finish(this.cq);
-    if (err) {
-      console.log("", err);
+    if (buffer.length === this.width * this.height) {
+      buffer.copy(this.activateMap, 0, 0, this.width * this.height * Float32Array.BYTES_PER_ELEMENT);
+    } else {
+      new Error(`${buffer.length} != this.width*this.height=${this.width * this.height}`);
     }
   }
   clearActivate() {
-    cl.enqueueFillBuffer(this.cq, this.activateMap, FLOATSIZE, 0, 0, new Uint32Array([FLOATSIZE * this.width * this.height], 0, 1));
+    this.activateMap.fill(0);
   }
   getActivate() {
-    var output = Buffer(FLOATSIZE * this.width * this.height);
-    cl.enqueueReadBuffer(this.cq, this.activateMap, true, 0, FLOATSIZE * this.width * this.height, output);
-    return output;
-  }
-  copyActivateFrom(layer) {
-    if (layer.activateMap && layer.width * layer.height === this.width * this.height) {
-      cl.enqueueCopyBuffer(this.cq, this.activateMap, layer.activateMap, 0, 0, FLOATSIZE * this.width * this.height);
-    } else {
-      new Error(`layer.width*layer.height=${layer.width * layer.height} != this.width*this.height=${this.width * this.height}`);
-    }
+    return this.activateMap;
   }
 };

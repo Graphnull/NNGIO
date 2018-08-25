@@ -27,8 +27,8 @@ module.exports.FCLayer = class FCLayer extends Memory {
     this.clearError();
 
     //activate
-    var code = `__kernel void kernel ${"activate" + this.id}( __global int16* bufferA){
-      bufferA[get_global_id(0)]=bufferA[get_global_id(0)]&0x7FFFFFFF;
+    var code = `__kernel void kernel ${"activate" + this.id}( __global float* bufferA){
+      bufferA[get_global_id(0)]=fabs(bufferA[get_global_id(0)]);
       };`;
     var prog = cl.createProgramWithSource(ctx, code);
     try {
@@ -40,7 +40,7 @@ module.exports.FCLayer = class FCLayer extends Memory {
       console.error("error", cl.getProgramBuildInfo(prog, device, cl.PROGRAM_BUILD_LOG));
     }
     this.activateKernel = cl.createKernel(prog, "activate" + this.id);
-    cl.setKernelArg(this.activateKernel, 0, "int16*", this.activateMap);
+    cl.setKernelArg(this.activateKernel, 0, "float*", this.activateMap);
   }
 
   clearError() {
@@ -49,7 +49,7 @@ module.exports.FCLayer = class FCLayer extends Memory {
 
   RELUactivate() {
     var err;
-    err = cl.enqueueNDRangeKernel(this.cq, this.activateKernel, 1, [0], [this.width * this.height / 16], null);
+    err = cl.enqueueNDRangeKernel(this.cq, this.activateKernel, 1, [0], [(this.width * this.height) / 16], null);
     if (err) {
       console.log(err);
     }
@@ -71,7 +71,7 @@ module.exports.FCLayer = class FCLayer extends Memory {
     if (layer.width != this.width || layer.height != this.height) {
       throw Error("layer.width != this.width || layer.height != this.height");
     } else {
-      cl.enqueueNDRangeKernel(this.cq, this["getErrorKernel" + layer.id], 1, [0], [this.width * this.height / 16], null);
+      cl.enqueueNDRangeKernel(this.cq, this["getErrorKernel" + layer.id], 1, [0], [(this.width * this.height) / 16], null);
       cl.finish(this.cq);
     }
   }
@@ -167,9 +167,9 @@ module.exports.FCLayer = class FCLayer extends Memory {
 
          int x=get_global_id(0)* ${layer.width * layer.height}+fmod((get_global_id(0) *43758.5453+layerInfo[1]),${layer.width * layer.height}.0);
           if(layerInfo[2]>0){
-          bufferW[x]+= 0.001;
+          bufferW[x]+= 0.01;
           } else{
-            bufferW[x]-= 0.001;
+            bufferW[x]-= 0.01;
           }
         }
         `;
@@ -198,15 +198,16 @@ module.exports.FCLayer = class FCLayer extends Memory {
        int x=get_global_id(0)* bufferWidth+fmod((get_global_id(0) *43758.5453+layerInfo[1]),bufferWidth*1.0);
        if((err)<bufferError[get_global_id(0)] ){
              if(layerInfo[2]>0){
-             bufferW[x]=bufferW[x]-0.001+fabs(err)*0.101;
+             bufferW[x]=bufferW[x]-0.01+fabs(err)*0.11;
              }else{
-             bufferW[x]=bufferW[x]+0.001-fabs(err)*0.101;
+             bufferW[x]=bufferW[x]+0.01-fabs(err)*0.11;
              }
+             
        }else{
              if(layerInfo[2]>0){
-             bufferW[x]=bufferW[x]-0.001;
+             bufferW[x]=bufferW[x]-0.01;
               }else{
-             bufferW[x]=bufferW[x]+0.001;
+             bufferW[x]=bufferW[x]+0.01;
              }
            if(err==bufferError[get_global_id(0)]){
            }
@@ -242,7 +243,7 @@ module.exports.FCLayer = class FCLayer extends Memory {
     var layerWeight = this.connect[layer.id];
     var temp = new Buffer(layerWeight.height * layerWeight.width * FLOATSIZE);
     for (var i = 0; i !== layerWeight.height * layerWeight.width; i++) {
-      temp.writeFloatLE(Math.random() - 0.5, i * FLOATSIZE);
+      temp.writeFloatLE((Math.random() - 0.5) * 0.1, i * FLOATSIZE);
     }
 
     cl.enqueueWriteBuffer(this.cq, layerWeight.buffer, true, 0, FLOATSIZE * layerWeight.height * layerWeight.width, temp);
@@ -254,6 +255,87 @@ module.exports.FCLayer = class FCLayer extends Memory {
       console.log(err);
     }
     cl.finish(this.cq);
+  }
+
+  backErrorWithMutate(layer) {
+    var err = cl.enqueueNDRangeKernel(this.cq, this["backErrorWithMutateKernel" + layer.id], 1, [0], [this.width * this.height], null);
+    if (err) {
+      console.log(err);
+    }
+    cl.finish(this.cq);
+  }
+
+  backError(layer) {
+    var err = cl.enqueueNDRangeKernel(this.cq, this["backErrorKernel" + layer.id], 1, [0], [this.width * this.height], null);
+    if (err) {
+      console.log(err);
+    }
+    cl.finish(this.cq);
+  }
+  setBackError(layer) {
+    //backError
+    var code = `
+    __kernel void kernel  ${"backError" + layer.id}( __global float* errorMap,__global float* bufferWL,  __global float* errorL){
+      errorMap[get_global_id(0)]=0.0;
+        for(size_t x=0;x!=${layer.width}; x++){
+          errorMap[get_global_id(0)]+=fabs(errorL[x]*bufferWL[get_global_id(0)+x*${this.width}]);
+        }
+      }
+`;
+    var prog = cl.createProgramWithSource(ctx, code);
+    try {
+      var state = cl.buildProgram(prog);
+      if (state) {
+        new Error(state);
+      }
+    } catch (err) {
+      console.error("error", cl.getProgramBuildInfo(prog, device, cl.PROGRAM_BUILD_LOG));
+    }
+    this["backErrorKernel" + layer.id] = cl.createKernel(prog, "backError" + layer.id);
+
+    cl.setKernelArg(this["backErrorKernel" + layer.id], 0, "float*", this.errorMap);
+    cl.setKernelArg(this["backErrorKernel" + layer.id], 1, "float*", layer.connect[this.id].buffer);
+    cl.setKernelArg(this["backErrorKernel" + layer.id], 2, "float*", layer.errorMap);
+
+    //backErrorWithMutate
+    var code = `
+    __kernel void kernel  ${"backErrorWithMutate" + layer.id}( __global float* errorMap,__global float* bufferWL,  __global float* errorL){
+      float err=0.0;
+        for(size_t x=0;x!=${layer.width}; x++){
+         err+=fabs(errorL[x]*bufferWL[get_global_id(0)+x*${this.width}]);
+        }
+
+        int x=get_global_id(0)* ${layer.width * this.width}+fmod((get_global_id(0) *43758.5453+layerInfo[1]),${layer.width * this.width}*1.0);
+        if((err)<errorMap[get_global_id(0)] ){
+              if(layerInfo[2]>0){
+              bufferW[x]=bufferW[x]-0.01+fabs(err)*0.11;
+              }else{
+              bufferW[x]=bufferW[x]+0.01-fabs(err)*0.11;
+              }
+              
+        }else{
+              if(layerInfo[2]>0){
+              bufferW[x]=bufferW[x]-0.01;
+               }else{
+              bufferW[x]=bufferW[x]+0.01;
+              }
+
+      }
+`;
+    var prog = cl.createProgramWithSource(ctx, code);
+    try {
+      var state = cl.buildProgram(prog);
+      if (state) {
+        new Error(state);
+      }
+    } catch (err) {
+      console.error("error", cl.getProgramBuildInfo(prog, device, cl.PROGRAM_BUILD_LOG));
+    }
+    this["backErrorWithMutateKernel" + layer.id] = cl.createKernel(prog, "backErrorWithMutate" + layer.id);
+
+    cl.setKernelArg(this["backErrorWithMutateKernel" + layer.id], 0, "float*", this.errorMap);
+    cl.setKernelArg(this["backErrorWithMutateKernel" + layer.id], 1, "float*", layer.connect[this.id].buffer);
+    cl.setKernelArg(this["backErrorWithMutateKernel" + layer.id], 2, "float*", layer.errorMap);
   }
 };
 
