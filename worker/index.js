@@ -2,6 +2,7 @@ const nodencl = require("nodencl");
 
 var { Memory } = require("./layers/memory");
 var { Input } = require("./layers/input");
+var { FCLayer } = require("./layers/fclayer");
 
 var { DataSet } = require("./../db");
 var sharp = require("sharp");
@@ -124,14 +125,50 @@ function generateNet(context) {
     var mem = new Memory(context, 28, 28);
 
     var input = new Input(context, 28, 28);
-    Promise.all([mem.init(), input.init()]).then(() => {
-      res({
-        activate: image => {
-          input.setInput(image);
-          return input.activate();
-        },
-        net: [input, mem]
-      });
+    var fclayer = new FCLayer(context, 16, 1);
+    var fclayer1 = new FCLayer(context, 28, 28);
+
+    Promise.all([mem.init(), input.init(), fclayer.init(), fclayer1.init()]).then(() => {
+      fclayer
+        .bind(input)
+        .then(() => {
+          return fclayer1.bind(fclayer);
+        })
+        .then(() => {
+          fclayer.setRandomWeight(input);
+          fclayer1.setRandomWeight(fclayer);
+          res({
+            activate: image => {
+              let count = { totalTime: 0 };
+              input.setInput(image);
+              return input
+                .activate()
+                .then(info => {
+                  count.totalTime += info.totalTime;
+                  return fclayer.multiple(input);
+                })
+                .then(info => {
+                  count.totalTime += info.totalTime;
+                  return fclayer.RELUactivate();
+                })
+                .then(info => {
+                  count.totalTime += info.totalTime;
+                  return fclayer1.multiple(fclayer);
+                })
+                .then(info => {
+                  count.totalTime += info.totalTime;
+                  return fclayer1.RELUactivate();
+                })
+                .then(info => {
+                  count.totalTime += info.totalTime;
+                  return new Promise(res => {
+                    return res(count);
+                  });
+                });
+            },
+            net: [fclayer, input, mem]
+          });
+        });
     });
   });
 }

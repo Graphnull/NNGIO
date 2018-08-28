@@ -28,7 +28,7 @@ module.exports.FCLayer = class FCLayer extends Memory {
     };
   }
   FCLayerInit() {
-    return new Promise(() => {
+    return new Promise(res => {
       this.connect = {};
       //activate
       var code = `__kernel void kernel ${"activate" + this.id}( __global float* bufferA){
@@ -45,6 +45,7 @@ module.exports.FCLayer = class FCLayer extends Memory {
         this.errorMap = arr[0];
         this.clearError();
         this.activateKernel = arr[1];
+        res();
       });
     });
   }
@@ -52,7 +53,7 @@ module.exports.FCLayer = class FCLayer extends Memory {
     this.errorMap.fill(0);
   }
   RELUactivate() {
-    return this.inputKernel.run({ bufferA: this.activateKernel });
+    return this.activateKernel.run({ bufferA: this.activateMap });
   }
   bind(layer) {
     return new Promise(res => {
@@ -141,7 +142,7 @@ module.exports.FCLayer = class FCLayer extends Memory {
           this.context.createBuffer(Int32Array.BYTES_PER_ELEMENT * 3, "readwrite")
         ]).then(arr => {
           weight.buffer = arr[0];
-          weight.bufferTemp[1];
+          weight.bufferTemp = arr[1];
           weight.clear();
           this.connect[layer.id] = weight;
           this["multilpeKernel" + layer.id] = arr[2];
@@ -163,7 +164,7 @@ module.exports.FCLayer = class FCLayer extends Memory {
   setRandomWeight(layer) {
     var layerWeight = this.connect[layer.id];
     for (var i = 0; i !== layerWeight.height * layerWeight.width; i++) {
-      layerWeight.buffer.writeFloatLE((Math.random() - 0.5) * 0.1, i * FLOATSIZE);
+      layerWeight.buffer.writeFloatLE((Math.random() - 0.5) * 0.1, i * Float32Array.BYTES_PER_ELEMENT);
     }
   }
   multiple(layer) {
@@ -256,6 +257,6 @@ module.exports.FCLayer = class FCLayer extends Memory {
     return this["backErrorKernel" + layer.id].run({ errorMap: this.errorMap, bufferWL: layer.connect[this.id].buffer, errorL: layer.errorMap });
   }
   backErrorWithMutate(layer) {
-    return this["backErrorKernel" + layer.id].run({ errorMap: this.errorMap, bufferWL: layer.connect[this.id].buffer, errorL: layer.errorMap });
+    return this["backErrorWithMutateKernel" + layer.id].run({ errorMap: this.errorMap, bufferWL: layer.connect[this.id].buffer, errorL: layer.errorMap });
   }
 };
