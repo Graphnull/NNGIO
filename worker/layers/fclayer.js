@@ -146,7 +146,7 @@ module.exports.FCLayer = class FCLayer extends Memory {
           weight.clear();
           this.connect[layer.id] = weight;
           this["multilpeKernel" + layer.id] = arr[2];
-          this["getErrorKernel" + layer.id] = arr[3];
+          this["getErrorKernel" + this.id] = arr[3];
           this["mutateWeightKernel" + layer.id] = arr[4];
           this["mutateWeightBuffer" + layer.id] = arr[5];
           this["checkMutateWeightKernel" + layer.id] = arr[6];
@@ -171,7 +171,7 @@ module.exports.FCLayer = class FCLayer extends Memory {
     return this["multilpeKernel" + layer.id].run({ bufferIn: layer.activateMap, bufferOut: this.activateMap, bufferW: this.connect[layer.id].buffer });
   }
   getErrorFromCompare(layer) {
-    return this["getErrorKernel" + layer.id].run({ bufferIn: this.activateMap, bufferOut: layer.activateMap, bufferError: this.errorMap });
+    return this["getErrorKernel" + this.id].run({ bufferIn: this.activateMap, bufferOut: layer.activateMap, bufferError: this.errorMap });
   }
   mutateWeight(layer) {
     this.tempy = Math.floor((Math.random() - 0.5) * 100);

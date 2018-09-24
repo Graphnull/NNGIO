@@ -45,9 +45,20 @@ class App extends Component {
   render() {
     return (
       <div>
-        <ShowMap mapWidth={28} mapHeight={28} id="input" />
+        <ShowMap mapWidth={16} mapHeight={16 * 16} id="input" />
+        <ShowMap mapWidth={28} mapHeight={28 * 64} id="input1" />
         <ShowMap mapWidth={28} mapHeight={28} id="output0" />
-        <ShowMap mapWidth={64} mapHeight={64} id="output1" />
+        <ShowMap mapWidth={28} mapHeight={28} id="output1" />
+        <ShowMap mapWidth={28} mapHeight={28} id="output2" />
+        <ShowMap mapWidth={28} mapHeight={28} id="output3" />
+        <Button
+          onClick={() => {
+            socket.emit("input", Math.floor(Math.random() * 900));
+          }}
+        >
+          Отправить
+        </Button>
+        {/*
         <div
           style={{
             width: "100%",
@@ -81,6 +92,7 @@ class App extends Component {
             })}
           />
         </div>
+          */}
       </div>
     );
   }
